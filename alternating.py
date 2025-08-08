@@ -161,12 +161,11 @@ class AlternatingMinimization:
 			r_j_new = np.array(r_j_used) # shape (num_rows,)
 
 			s_flat, *_ = np.linalg.lstsq(A_j, r_j_new, rcond=None)
-			#"""
+
 			max_norm = 4.0
 			norm = np.linalg.norm(s_flat)
 			if norm > max_norm:
 				s_flat = (s_flat / norm) * max_norm
-			#"""
 
 			self.s_list[i] = np.reshape(s_flat, (self.num_joints, self.t_s))
 
