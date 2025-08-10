@@ -90,7 +90,7 @@ class AlternatingMinimization:
 		return S
 	
 	"""
-	Rebuilds matrix S after s_js are updated
+	Rebuilds matrix S after s_j is updated
 
 	Parameters:
 		None
@@ -162,6 +162,8 @@ class AlternatingMinimization:
 
 			s_flat, *_ = np.linalg.lstsq(A_j, r_j_new, rcond=None)
 
+			# previous problems with local min and exploding S
+			# this helps with both
 			max_norm = 4.0
 			norm = np.linalg.norm(s_flat)
 			if norm > max_norm:
@@ -169,9 +171,9 @@ class AlternatingMinimization:
 
 			self.s_list[i] = np.reshape(s_flat, (self.num_joints, self.t_s))
 
+			# must update S now for the next synergy's optimization
 			self.update_S(self.s_list)
 
-		#self.update_S(self.s_list)
 		return self.S
 
 	def alternatingMin(self, epochs: int=100) -> None:
@@ -187,7 +189,6 @@ class AlternatingMinimization:
 				self.compare_v(epoch)
 	
 	def c_loss(self) -> float:
-		# using squared L2 norm to avoid square root computation
 		return np.sum((self.c_true - self.c)**2)
 	
 	def S_loss(self) -> float:
@@ -199,7 +200,7 @@ class AlternatingMinimization:
 
 # **** FUNCTIONS BELOW ARE FOR TESTING PURPOSES ****
 	# In an actual use case, the user chooses v
-	# For testing, we generate S and c and do v = S @ c and then see if we can recover S and c
+	# For testing, we generate S and c and do v = S @ c
 
 	def sparse_c(self):
 		if self.seed is not None:
@@ -250,21 +251,6 @@ class AlternatingMinimization:
 			plt.suptitle(f"Synergy {i + 1} - Joint-wise Comparison")
 			plt.tight_layout()
 			plt.show()
-
-"""
-	def print(self):
-		s = self.s_list[0]  # shape (10, 39)
-		for i in range(10):
-			plt.plot(s[i], label=f"Joint {i+1}")
-		plt.title("Synergy 1: Each Joint's Temporal Pattern")
-		plt.xlabel("Time")
-		plt.ylabel("Velocity")
-		plt.legend()
-		plt.show()
-		
-	def c_loss(self) -> float:
-		return np.sum((self.c_true - self.c_est)**2)
-""" 
 
 if __name__ == '__main__':
 	T = 6
