@@ -176,6 +176,15 @@ class AlternatingMinimization:
 
 		return self.S
 
+	"""
+	Attempts to find S and c that solve v using alternating minimization
+
+	Parameters:
+		epochs (int): number of times alternating minimization should run
+					  one run includes solving for c and solving for S
+	Returns:
+		None
+	"""
 	def alternatingMin(self, epochs: int=100) -> None:
 		for epoch in range(epochs):
 			self.solve_c()
