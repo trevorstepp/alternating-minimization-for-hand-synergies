@@ -10,7 +10,6 @@ import os
 np.set_printoptions(precision=4, suppress=True)
 
 class AlternatingMinimization:
-	# Note: This is currently for one grasping task (only requires slight modification to work for multiple)
 	def __init__(self, T: int, t_s: int, m: int, v_list: list[npt.NDArray], num_joints: int=10, alpha: float=0.01, num_nonzero: Optional[int]=None, seed: Optional[int]=None) -> None:
 		self.T = T  # duration of grasp
 		self.t_s = t_s  # duration of synergy
@@ -108,13 +107,12 @@ class AlternatingMinimization:
 	Returns:
 		A 1-d numpy array that is the new prediction for c
 	"""
-	def solve_c(self) -> npt.NDArray:
+	def solve_c(self) -> None:
 		# Lasso regression
 		lasso = linear_model.Lasso(self.alpha, max_iter=5000, fit_intercept=False)
 		lasso.fit(self.S, self.v)
 		# get c estimate
 		self.c = lasso.coef_
-		#return c_est
 	
 	def solve_S(self) -> npt.NDArray:
 		#v_hat = self.S @ self.c
@@ -162,8 +160,7 @@ class AlternatingMinimization:
 
 			s_flat, *_ = np.linalg.lstsq(A_j, r_j_new, rcond=None)
 
-			# previous problems with local min and exploding S
-			# this helps with both
+			# helps with problem of exploding S
 			max_norm = 4.0
 			norm = np.linalg.norm(s_flat)
 			if norm > max_norm:
@@ -268,10 +265,6 @@ if __name__ == '__main__':
 	num_joints = 10
 	v_list = [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
 	test = AlternatingMinimization(T, t_s, m, v_list, num_joints)
-	#print("S loss:", test.S_loss())
-	#print("c loss", test.c_loss())
-	#print(f"v loss: {test.v_loss()}")
-	#print("\n")
 	test.alternatingMin(epochs=100)
 	"""
 	for _ in range(5):
