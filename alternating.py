@@ -2,10 +2,7 @@ from sklearn import linear_model
 import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
-import pandas as pd
 from typing import Optional, Tuple
-import seaborn as sns
-import os
 
 np.set_printoptions(precision=4, suppress=True)
 
