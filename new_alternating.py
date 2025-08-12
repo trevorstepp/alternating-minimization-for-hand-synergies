@@ -4,10 +4,12 @@ import numpy.typing as npt
 import matplotlib.pyplot as plt
 from typing import Optional, Tuple
 
+import time
+
 np.set_printoptions(precision=4, suppress=True)
 
 class AlternatingMinimization:
-    def __init__(self, T: int, t_s: int, m: int, v_list: list[npt.NDArray], num_joints: int=10, alpha: float=0.001, num_nonzero: Optional[int]=None, seed: Optional[int]=None) -> None:
+    def __init__(self, T: int, t_s: int, m: int, v_list: list[npt.NDArray], num_joints: int=10, alpha: float=0.01, num_nonzero: Optional[int]=None, seed: Optional[int]=None) -> None:
         self.T = T  # duration of grasp
         self.t_s = t_s  # duration of synergy
         self.alpha = alpha  # for Lasso
@@ -175,13 +177,13 @@ class AlternatingMinimization:
         for epoch in range(epochs):
             self.solve_c()
             self.solve_S()
-            print(f"Epoch {epoch}")
-            print(f"S MAE: {self.S_loss()}")
-            print(f"c loss: {self.c_loss()}")
-            print(f"v loss {self.v_loss()}")
-            print("-" * 30)
-            if epoch % 10 == 0:
-                self.compare_v(epoch)
+            #print(f"Epoch {epoch}")
+            #print(f"S MAE: {self.S_loss()}")
+            #print(f"c loss: {self.c_loss()}")
+            #print(f"v loss {self.v_loss()}")
+            #print("-" * 30)
+            #if epoch % 10 == 0:
+                #self.compare_v(epoch)
     
     def c_loss(self) -> float:
         return np.sum((self.c_true - self.c)**2)
@@ -254,7 +256,9 @@ if __name__ == '__main__':
     num_joints = 10
     v_list = [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
     test = AlternatingMinimization(T, t_s, m, v_list, num_joints, num_nonzero=None)
+    start = time.time()
     test.alternatingMin(epochs=100)
+    end = time.time()
     """
     for _ in range(5):
         #test.solve_S()
@@ -284,3 +288,4 @@ if __name__ == '__main__':
     print(f"c: {np.count_nonzero(test.c)}")
     test.compare_c()
     test.compare_synergies()
+    print(f"Total time: {end - start}")

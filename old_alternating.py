@@ -3,7 +3,7 @@ This file is the old version of the AlternatingMinimization class.
 Unlike the new version, this file's solve_S() function skips zero
 coefficients (inactive shifts) when building design matrix A_j and
 residual r_j. This was removed in the new version to make for a 
-simpler and faster solve_S() function.
+simpler solve_S() function.
 """
 
 from sklearn import linear_model
@@ -11,6 +11,8 @@ import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
 from typing import Optional, Tuple
+
+import time
 
 np.set_printoptions(precision=4, suppress=True)
 
@@ -191,13 +193,13 @@ class AlternatingMinimization:
         for epoch in range(epochs):
             self.solve_c()
             self.solve_S()
-            print(f"Epoch {epoch}")
-            print(f"S MAE: {self.S_loss()}")
-            print(f"c loss: {self.c_loss()}")
-            print(f"v loss {self.v_loss()}")
-            print("-" * 30)
-            if epoch % 10 == 0:
-                self.compare_v(epoch)
+            #print(f"Epoch {epoch}")
+            #print(f"S MAE: {self.S_loss()}")
+            #print(f"c loss: {self.c_loss()}")
+            #print(f"v loss {self.v_loss()}")
+            #print("-" * 30)
+            #if epoch % 10 == 0:
+                #self.compare_v(epoch)
     
     def c_loss(self) -> float:
         return np.sum((self.c_true - self.c)**2)
@@ -269,8 +271,10 @@ if __name__ == '__main__':
     m = 6
     num_joints = 10
     v_list = [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
-    test = AlternatingMinimization(T, t_s, m, v_list, num_joints, num_nonzero=6)
+    test = AlternatingMinimization(T, t_s, m, v_list, num_joints, num_nonzero=None)
+    start = time.time()
     test.alternatingMin(epochs=100)
+    end = time.time()
     """
     for _ in range(5):
         #test.solve_S()
@@ -297,3 +301,4 @@ if __name__ == '__main__':
     print(f"c: {np.count_nonzero(test.c)}")
     test.compare_c()
     test.compare_synergies()
+    print(f"Total time: {end - start}")
