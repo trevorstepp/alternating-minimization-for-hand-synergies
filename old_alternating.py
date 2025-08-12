@@ -1,3 +1,11 @@
+"""
+This file is the old version of the AlternatingMinimization class.
+Unlike the new version, this file's solve_S() function skips zero
+coefficients (inactive shifts) when building design matrix A_j and
+residual r_j. This was removed in the new version to make for a 
+simpler and faster solve_S() function.
+"""
+
 from sklearn import linear_model
 import numpy as np
 import numpy.typing as npt
