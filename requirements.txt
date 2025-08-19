@@ -16,15 +16,21 @@ joblib==1.5.1
     # via scikit-learn
 kiwisolver==1.4.7
     # via matplotlib
+llvmlite==0.43.0
+    # via numba
 matplotlib==3.9.4
     # via -r requirements.in
+numba==0.60.0
+    # via skglm
 numpy==2.0.2
     # via
     #   -r requirements.in
     #   contourpy
     #   matplotlib
+    #   numba
     #   scikit-learn
     #   scipy
+    #   skglm
 packaging==25.0
     # via matplotlib
 pillow==11.3.0
@@ -34,11 +40,17 @@ pyparsing==3.2.3
 python-dateutil==2.9.0.post0
     # via matplotlib
 scikit-learn==1.6.1
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   skglm
 scipy==1.13.1
-    # via scikit-learn
+    # via
+    #   scikit-learn
+    #   skglm
 six==1.17.0
     # via python-dateutil
+skglm==0.5
+    # via -r requirements.in
 threadpoolctl==3.6.0
     # via scikit-learn
 zipp==3.23.0
