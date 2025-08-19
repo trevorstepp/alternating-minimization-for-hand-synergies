@@ -3,6 +3,7 @@ import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
 from typing import Optional, Tuple
+from asgl import Regressor
 
 np.set_printoptions(precision=4, suppress=True)
 
@@ -19,6 +20,7 @@ class AlternatingMinimization:
         self.num_nonzero = num_nonzero or (self.m * self.max_shift) // 4  # number of nonzero entries in c_true
         #self.num_grasps = len(v_list)
         self.num_grasps = 2
+        self.groups = np.repeat(np.arange(self.m), self.max_shift)
 
         # **** Testing variables ****
         self.s_list_true = self.init_synergies() 
@@ -105,7 +107,7 @@ class AlternatingMinimization:
         A 1-d numpy array that is the new prediction for c
     """
     def solve_c(self) -> None:
-        # Lasso regression
+        # sparse group Lasso 
         lasso = linear_model.Lasso(self.alpha, max_iter=5000, fit_intercept=False)
         lasso.fit(self.S, self.v)
         # get c estimate
