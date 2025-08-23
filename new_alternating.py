@@ -1,9 +1,9 @@
-from sklearn import linear_model
+from sklearn import linear_model # type: ignore
 import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
-from typing import Optional, Tuple
-from asgl import Regressor
+from typing import Optional, Tuple, List
+from asgl import Regressor # type: ignore
 
 np.set_printoptions(precision=4, suppress=True)
 
@@ -31,9 +31,8 @@ class AlternatingMinimization:
 
         #self.v = np.concatenate([v.flatten() for v in self.v_list])  # velocity vector of all grasping tasks stacked
         self.s_list: list[npt.NDArray] = self.init_synergies() # list of synergies
-        self.S: Optional[npt.NDArray] = self.build_S(self.s_list)
-        self.c: Optional[npt.NDArray] = self.sparse_c()
-        #self.c: Optional[npt.NDArray] = None
+        self.S: npt.NDArray[np.float64] = self.build_S(self.s_list)
+        self.c: npt.NDArray[np.float64] = np.zeros(self.S.shape[1])
         """
         self.s_list: list[npt.NDArray] = self.s_list_true.copy() # list of synergies
         self.S: Optional[npt.NDArray] = self.build_S(self.s_list)
@@ -55,7 +54,7 @@ class AlternatingMinimization:
         return [np.random.randn(self.num_joints, self.t_s) for _ in range(self.m)]
 
     """
-    Applies a time shift to each synergy and stretches to length T
+    Applies a time shift to synergy and stretches to length T
 
     Parameters: 
         s (NDArray): 2-d array where each row is a joint and t_s cols
@@ -73,7 +72,7 @@ class AlternatingMinimization:
         return np.concatenate(shifts)  # shape (num_joints * T,)
 
     # S = [ D_{11}s^1 | ... | D_{1K_1}s^1 | ... | D_{m1}s^m | ... | D_{mK_m}s^m ]
-    def build_S(self, s_list: npt.NDArray) -> npt.NDArray:
+    def build_S(self, s_list: list[npt.NDArray]) -> npt.NDArray:
         # will build S column by column
         S_cols = []
         for j in range(self.m):
@@ -95,7 +94,7 @@ class AlternatingMinimization:
     Returns:
         None
     """
-    def update_S(self, s_list: npt.NDArray) -> None:
+    def update_S(self, s_list: list[npt.NDArray]) -> None:
         self.S = self.build_S(s_list)
 
     """
@@ -108,10 +107,10 @@ class AlternatingMinimization:
     """
     def solve_c(self) -> None:
         # sparse group Lasso 
-        lasso = linear_model.Lasso(self.alpha, max_iter=5000, fit_intercept=False)
-        lasso.fit(self.S, self.v)
+        model = Regressor(model='lm', penalization='sgl', lambda1=0.1, alpha=0.5)
+        model.fit(self.S, self.v, group_index=self.groups)
         # get c estimate
-        self.c = lasso.coef_
+        self.c = model.coef_
     
     def solve_S(self) -> npt.NDArray:
         #v_hat = self.S @ self.c
@@ -195,6 +194,17 @@ class AlternatingMinimization:
         v_est = self.S @ self.c
         return np.sum((self.v - v_est)**2)
 
+    def dropped_synergies(self) -> Tuple[List[int], List[int]]:
+        active = []
+        dropped = []
+        for j in range(self.m):
+            group = (self.groups == j)
+            if np.allclose(self.c[group], 0, atol=1e-8):
+                dropped.append(j)
+            else:
+                active.append(j)
+        return active, dropped
+
 # **** FUNCTIONS BELOW ARE FOR TESTING PURPOSES ****
     # In an actual use case, the user chooses v
     # For testing, we generate S and c and do v = S @ c
@@ -250,11 +260,11 @@ class AlternatingMinimization:
             plt.show()
 
 if __name__ == '__main__':
-    T = 40
-    t_s = 20
-    m = 6
+    T = 20
+    t_s = 10
+    m = 10
     num_joints = 10
-    v_list = [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    v_list = [np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])]
     test = AlternatingMinimization(T, t_s, m, v_list, num_joints, num_nonzero=None)
     test.alternatingMin(epochs=100)
     """
@@ -286,3 +296,6 @@ if __name__ == '__main__':
     print(f"c: {np.count_nonzero(test.c)}")
     test.compare_c()
     test.compare_synergies()
+    active, dropped = test.dropped_synergies()
+    print(f"Active synergies: {active}")
+    print(f"Dropped synergies: {dropped}")

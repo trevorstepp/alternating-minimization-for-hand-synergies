@@ -1,0 +1,12 @@
+name: synergies
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy
+  - matplotlib
+  - mypy
+  - scikit-learn
+  - pip
+  - pip:
+    - asgl
