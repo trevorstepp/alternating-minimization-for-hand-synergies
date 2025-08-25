@@ -23,39 +23,62 @@ class BaseSynergyModel(ABC):
         """Initializes the synergies using random numbers.
         
         Params:
-            None.
+            None
         Returns:
-            list[npt.NDArray]: The list of synergy matrices.
+            list[npt.NDArray]: The list of synergy matrices
         """
         if self.seed is not None:
             np.random.seed(self.seed)
         return [np.random.randn(self.n, self.t_s) for _ in range(self.m)]
+    
+    def shift_synergy(self, synergy: npt.NDArray, shift: int) -> npt.NDArray:
+        """Shifts a synergy in time and stacks each joint vertically into a column vector.
 
-    def init_S(self) -> npt.NDArray:
-        return 8
+        Params:
+            synergy (npt.NDArray): shape (num_joints, t_s), rows=joints, cols=timesteps
+            shift (int): The amount by which to shift the synergy
+        Returns:
+            npt.NDArray: The column vector that holds the shifted synergy (all joints stacked)
+        """
+        shifts = []  # to hold shifted rows of s
+        for j in range(self.n):
+            front_pad = np.zeros(shift)
+            back_pad = np.zeros(self.T - self.t_s - shift)
+            shift_j = np.concatenate([front_pad, synergy[j], back_pad])
+            shifts.append(shift_j)
+        return np.concatenate(shifts)  # shape (num_joints * T,)
+
+    def build_S(self) -> npt.NDArray:
+        pass
 
     def init_C(self) -> npt.NDArray:
+        """Initializes C as a matrix where all entries are 0.
+        
+        Params:
+            None
+        Returns:
+            npt.NDArray: matrix of shape (m * K_j, G)
+        """
         return np.zeros(shape=(self.m * self.K_j, self.G))
     
     def V_est(self) -> npt.NDArray:
         """Calculates the current V estimation using S and C.
         
         Params:
-            None.
+            None
         Returns:
-            npt.NDArray: The V estimation (cols are grasping tasks).
+            npt.NDArray: The V estimation (cols are grasping tasks), shape (nT, G)
         """
         return self.S @ self.C
     
-    """
-    Uses squared L2 norm to calculate V loss
-
-    Paramters:
-        None
-    Returns:
-        Total loss
-    """
     def V_loss(self) -> float:
+        """Uses squared L2 norm to calculate V loss.
+
+        Params:
+            None
+        Returns:
+            float: loss (difference in actual and predicted value of V and V_est, respectively, squared)
+        """
         return np.sum((self.V - self.V_est())**2)
 
     @abstractmethod

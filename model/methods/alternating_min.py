@@ -4,5 +4,5 @@ from asgl import Regressor # type: ignore
 
 from model.base import BaseSynergyModel
 
-class twoStage(BaseSynergyModel):
+class AlternatingMinModel(BaseSynergyModel):
     pass
