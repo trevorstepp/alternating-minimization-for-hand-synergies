@@ -14,7 +14,7 @@ class BaseSynergyModel(ABC):
         self.V: Optional[npt.NDArray] = V  # each column is a grasping task
         self.seed: Optional[int] = seed  # seed for init_synergies()
 
-        # initialize synergies and S and C
+        # Initialize synergies and S and C
         self.s_list: list[npt.NDArray] = self.init_synergies()
         self.S: npt.NDArray = self.init_S()
         self.C: npt.NDArray = self.init_C()
@@ -23,9 +23,9 @@ class BaseSynergyModel(ABC):
         """Initializes the synergies using random numbers.
         
         Params:
-            None
+            None.
         Returns:
-            list[npt.NDArray]: The list of synergy matrices
+            list[npt.NDArray]: The list of synergy matrices.
         """
         if self.seed is not None:
             np.random.seed(self.seed)
@@ -35,12 +35,12 @@ class BaseSynergyModel(ABC):
         """Shifts a synergy in time and stacks each joint vertically into a column vector.
 
         Params:
-            synergy (npt.NDArray): shape (num_joints, t_s), rows=joints, cols=timesteps
-            shift (int): The amount by which to shift the synergy
+            synergy (npt.NDArray): shape (num_joints, t_s), rows=joints, cols=timesteps.
+            shift (int): The amount by which to shift the synergy.
         Returns:
-            npt.NDArray: The column vector that holds the shifted synergy (all joints stacked)
+            npt.NDArray: The column vector that holds the shifted synergy (all joints stacked).
         """
-        shifts = []  # to hold shifted rows of s
+        shifts = []  # holds shifted rows of s
         for j in range(self.n):
             front_pad = np.zeros(shift)
             back_pad = np.zeros(self.T - self.t_s - shift)
@@ -49,15 +49,33 @@ class BaseSynergyModel(ABC):
         return np.concatenate(shifts)  # shape (num_joints * T,)
 
     def build_S(self) -> npt.NDArray:
-        pass
+        """Builds the dictionary matrix S containing all shifted synergies.
+
+        Params:
+            None.
+        Returns:
+            npt.NDArray: The S matrix, where each column is a shifted synergy, shape (nT, m * K_j).
+        """
+        cols = []  # holds the S columns
+
+        # S contains all shifts of all synergies (K_j * m columns)
+        # For each synergy, we shift it K_j, appending each shift to cols
+        for j in range(self.m):
+            s_j = self.s_list[j]
+            for shift in range(self.K_j):
+                col = self.shift_synergy(s_j, shift)
+                cols.append(col)
+        
+        S = np.column_stack(cols)
+        return S
 
     def init_C(self) -> npt.NDArray:
         """Initializes C as a matrix where all entries are 0.
         
         Params:
-            None
+            None.
         Returns:
-            npt.NDArray: matrix of shape (m * K_j, G)
+            npt.NDArray: The C matrix, shape (m * K_j, G).
         """
         return np.zeros(shape=(self.m * self.K_j, self.G))
     
@@ -65,9 +83,9 @@ class BaseSynergyModel(ABC):
         """Calculates the current V estimation using S and C.
         
         Params:
-            None
+            None.
         Returns:
-            npt.NDArray: The V estimation (cols are grasping tasks), shape (nT, G)
+            npt.NDArray: The V estimation, where the columns are grasping tasks, shape (nT, G).
         """
         return self.S @ self.C
     
@@ -75,9 +93,9 @@ class BaseSynergyModel(ABC):
         """Uses squared L2 norm to calculate V loss.
 
         Params:
-            None
+            None.
         Returns:
-            float: loss (difference in actual and predicted value of V and V_est, respectively, squared)
+            float: The loss (difference in actual and predicted value of V and V_est, respectively, squared).
         """
         return np.sum((self.V - self.V_est())**2)
 
