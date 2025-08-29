@@ -5,4 +5,6 @@ from asgl import Regressor # type: ignore
 from model.base import BaseSynergyModel
 
 class AlternatingMinModel(BaseSynergyModel):
-    pass
+
+    def solve(self, epochs: int=100) -> None:
+        pass
