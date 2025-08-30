@@ -2,11 +2,11 @@ name: synergies
 channels:
   - conda-forge
 dependencies:
-  - python=3.12
+  - python=3.11
   - numpy
   - matplotlib
   - mypy
   - scikit-learn
   - pip
   - pip:
-    - asgl
+    - groupyr

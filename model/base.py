@@ -17,6 +17,7 @@ class BaseSynergyModel(ABC):
         self.seed: Optional[int] = seed  # seed for init_synergies()
 
         # Initialize synergies and S and C
+        # These are starting 'guesses' (in C's case, everything is initialized to 0)
         self.s_list: list[npt.NDArray] = self.init_synergies()
         self.S: npt.NDArray = self.build_S()
         self.C: npt.NDArray = self.init_C()
@@ -212,5 +213,5 @@ class BaseSynergyModel(ABC):
         return np.sum((self.V - self.V_est())**2)
 
     @abstractmethod
-    def solve(self, *args, **kwargs) -> None:
+    def solve(self) -> None:
         pass
