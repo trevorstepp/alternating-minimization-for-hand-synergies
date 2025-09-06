@@ -3,7 +3,9 @@ import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
 from typing import Optional, Tuple, List
-from asgl import Regressor # type: ignore
+from groupyr import SGL
+
+from scipy.linalg import block_diag
 
 np.set_printoptions(precision=4, suppress=True)
 
@@ -32,7 +34,8 @@ class AlternatingMinimization:
         #self.v = np.concatenate([v.flatten() for v in self.v_list])  # velocity vector of all grasping tasks stacked
         self.s_list: list[npt.NDArray] = self.init_synergies() # list of synergies
         self.S: npt.NDArray[np.float64] = self.build_S(self.s_list)
-        self.c: npt.NDArray[np.float64] = np.zeros(self.S.shape[1])
+        #self.c: npt.NDArray[np.float64] = np.zeros(self.S.shape[1])
+        self.c = self.sparse_c()
         """
         self.s_list: list[npt.NDArray] = self.s_list_true.copy() # list of synergies
         self.S: Optional[npt.NDArray] = self.build_S(self.s_list)
@@ -83,8 +86,9 @@ class AlternatingMinimization:
         # turn into matrix (currently, S_cols is a list of 1-d vectors)
         S_single = np.column_stack(S_cols)  # shape (num_joints * T, m * max_shifts)
         # now add all grasps
-        S = np.vstack([S_single for _ in range(self.num_grasps)])
-        return S
+        #S = np.vstack([S_single for _ in range(self.num_grasps)])
+        S_block = block_diag(*([S_single] * self.num_grasps))
+        return S_block
     
     """
     Rebuilds matrix S after s_j is updated
@@ -105,11 +109,29 @@ class AlternatingMinimization:
     Returns:
         A 1-d numpy array that is the new prediction for c
     """
+    """
     def solve_c(self) -> None:
-        # sparse group Lasso 
-        model = Regressor(model='lm', penalization='sgl', lambda1=0.1, alpha=0.5)
-        model.fit(self.S, self.v, group_index=self.groups)
+        # Lasso regression
+        lasso = linear_model.Lasso(self.alpha, max_iter=5000, fit_intercept=False)
+        lasso.fit(self.S, self.v)
         # get c estimate
+        self.c = lasso.coef_
+    """
+
+    def solve_c(self) -> None:
+        arr = np.arange(self.m * self.max_shift * self.num_grasps)
+        groups = np.array_split(arr, (self.m * self.num_grasps))
+    
+        model = SGL(
+            l1_ratio=0.7,  # L1 weight within SGL
+            alpha=0.3,      # overall regularization
+            groups=groups,
+            max_iter=5000,
+            tol=1e-6,
+            fit_intercept=False
+        )
+    
+        model.fit(self.S, self.v)
         self.c = model.coef_
     
     def solve_S(self) -> npt.NDArray:
@@ -174,6 +196,9 @@ class AlternatingMinimization:
     """
     def alternatingMin(self, epochs: int=100) -> None:
         for epoch in range(epochs):
+            print(f"Self.S: {self.S}")
+            print(f"Self.c: {self.c}")
+            print(f"{self.S @ self.c}")
             self.solve_c()
             self.solve_S()
             print(f"Epoch {epoch}")
@@ -212,7 +237,7 @@ class AlternatingMinimization:
     def sparse_c(self):
         if self.seed is not None:
             np.random.seed(self.seed)
-        c_len = self.m * self.max_shift  # length of c is the number of columns of S
+        c_len = self.m * self.max_shift * self.num_grasps  # length of c is the number of columns of S
         c = np.zeros(c_len)
         nonzero_indices = np.random.choice(c_len, size=self.num_nonzero, replace=False)
         c[nonzero_indices] = np.random.randn(self.num_nonzero)
@@ -260,10 +285,10 @@ class AlternatingMinimization:
             plt.show()
 
 if __name__ == '__main__':
-    T = 20
-    t_s = 10
-    m = 10
-    num_joints = 10
+    T = 10
+    t_s = 5
+    m = 4
+    num_joints = 2
     v_list = [np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])]
     test = AlternatingMinimization(T, t_s, m, v_list, num_joints, num_nonzero=None)
     test.alternatingMin(epochs=100)
