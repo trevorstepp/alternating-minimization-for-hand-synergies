@@ -176,7 +176,8 @@ class BaseSynergyModel(ABC):
             v_g = self.V[:, g]
 
             model = SGL(l1_ratio=self.lambda1, alpha=self.alpha, groups=groups)
-            model.fit(S_scaled, v_g)
+            #model.fit(S_scaled, v_g)
+            model.fit(self.S, v_g)
             self.C[:, g] = model.coef_
 
     def normalize_synergy(self, index: int) -> None:
