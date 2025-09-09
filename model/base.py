@@ -59,7 +59,7 @@ class BaseSynergyModel(ABC):
         """Shifts a synergy in time and stacks each joint vertically into a column vector.
 
         Params:
-            synergy (npt.NDArray): shape (num_joints, t_s), rows=joints, cols=timesteps.
+            synergy (npt.NDArray): Shape (num_joints, t_s), rows=joints, cols=timesteps.
             shift (int): The amount by which to shift the synergy.
         Returns:
             npt.NDArray: The column vector that holds the shifted synergy (all joints stacked).
@@ -76,7 +76,9 @@ class BaseSynergyModel(ABC):
         """Builds the dictionary matrix S containing all shifted synergies.
 
         Params:
-            None.
+            synergies (list[npt.NDArray]): A list of synergy matrices, each of shape (num_joints, t_s)
+            m (int): The number of synergies (length of synergies). This parameter is required only in
+                     the testing phase because we have a different number of synergies for true_S and S.
         Returns:
             npt.NDArray: The S matrix, where each column is a shifted synergy, shape (nT, m * K_j).
         """
@@ -93,7 +95,14 @@ class BaseSynergyModel(ABC):
         S = np.column_stack(cols)
         return S
     
-    def update_S(self, synergies: npt.NDArray) -> None:
+    def update_S(self, synergies: list[npt.NDArray]) -> None:
+        """Updates S with the newer/optimized synergies.
+        
+        Params:
+            synergies (list[npt.NDArray]): A list of synergy matrices, each of shape (num_joints, t_s)
+        Returns:
+            None.
+        """
         self.S = self.build_S(synergies, self.m)
 
     def solve_S(self) -> None:
@@ -144,12 +153,12 @@ class BaseSynergyModel(ABC):
         self.update_S(self.s_list)
 
     def build_shift_matrix(self, repeat: int) -> npt.NDArray:
-        """Builds the shift matrix for synergy j, repeat k, shape (nT, nt_s)
+        """Builds the shift matrix for the kth repeat of synergy j, shape (nT, nt_s).
 
         Params:
-            repeat (int): the current repeat (k) of synergy j
+            repeat (int): The current repeat of synergy j.
         Returns:
-            npt.NDArray:
+            npt.NDArray: The shift matrix D_jk, shape (nT, nt_s).
         """
         # P_k is the shift matrix for one joint
         P_k = np.zeros(shape=(self.T, self.t_s))
@@ -166,6 +175,8 @@ class BaseSynergyModel(ABC):
         return D_jk
 
     def sparse_group_lasso(self) -> None:
+        """
+        """
         indices = np.arange(self.m * self.K_j)
         groups = np.split(indices, self.m)
 
@@ -189,6 +200,7 @@ class BaseSynergyModel(ABC):
             None.
         """
         norm = np.linalg.norm(self.s_list[index].flatten())
+        # we only normalize if the norm is greater than a certain value
         if norm > SYNERGY_NORM_MAX:
             self.s_list[index] /= norm
             self.C[self.C_mask(index), :] *= norm
@@ -229,6 +241,8 @@ class BaseSynergyModel(ABC):
         return mask
 
     def sparse_C(self, group_prob: float = 0.4, within_prob: float = 0.5) -> npt.NDArray:
+        """
+        """
         if self.seed is not None:
             np.random.seed(self.seed)
         C_num_rows = self.true_S.shape[1]  # length of c is the number of columns of S
@@ -246,7 +260,8 @@ class BaseSynergyModel(ABC):
         """Calculates the current V estimation using S and C.
         
         Params:
-            None.
+            S (npt.NDArray): Matrix of synergies and their repeats.
+            C (npt.NDArray): Matrix of coefficients.
         Returns:
             npt.NDArray: The V estimation, where the columns are grasping tasks, shape (nT, G).
         """
@@ -269,7 +284,7 @@ class BaseSynergyModel(ABC):
         return np.sum((self.V - self.V_est(self.S, self.C))**2)
 
     def compare_V(self, compare: npt.NDArray, epoch: int) -> None:
-        """Comparison of V vs. estimated V.
+        """Comparison of V and estimated V.
 
         Params:
             compare (npt.NDArray): Numpy array to compare with V.
@@ -302,4 +317,6 @@ class BaseSynergyModel(ABC):
 
     @abstractmethod
     def solve(self) -> None:
+        """
+        """
         pass
