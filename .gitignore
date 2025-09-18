@@ -1,6 +1,9 @@
 # virtual environment
 .venv/
 
+# .env
+.env
+
 *.png
 .mypy_cache/
 __pycache__/

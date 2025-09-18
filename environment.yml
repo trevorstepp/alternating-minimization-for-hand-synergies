@@ -1,12 +1,15 @@
 name: synergies
 channels:
   - conda-forge
+  - defaults
 dependencies:
   - python=3.11
   - numpy
   - matplotlib
   - mypy
   - scikit-learn
+  - scipy
+  - python-dotenv
   - seaborn
   - pip
   - pip:

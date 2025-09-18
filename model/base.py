@@ -1,16 +1,17 @@
 import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
-import seaborn as sns
+import seaborn as sns # type: ignore
 from typing import Optional
-from groupyr import SGL
+from groupyr import SGL # type: ignore
 from abc import ABC, abstractmethod
 
 from sklearn import linear_model # type: ignore
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler # type: ignore
 import sys
 
-np.set_printoptions(precision=4, threshold=sys.maxsize, suppress=True)
+#np.set_printoptions(precision=4, threshold=sys.maxsize, suppress=True)
+np.set_printoptions(precision=3, threshold=np.inf, linewidth=200)
 
 SYNERGY_NORM_MAX = 4.0
 
@@ -21,7 +22,7 @@ class BaseSynergyModel(ABC):
         self.T = T  # duration of grasping task
         self.t_s = t_s  # duration of synergy
         self.m = m  # number of synergies
-        self.m_true = m // 2
+        self.m_true = 6
         self.n = n  # number of joints
         self.K_j = K_j  # number of repeats for each synergy
         self.G = G  # number of grasping tasks
@@ -32,10 +33,10 @@ class BaseSynergyModel(ABC):
         self.epochs = epochs  # number of epochs for alternating minimization
 
         # Initialize true values of synergies and S and C (then solve for the true V)
-        self.true_s_list: list[npt.NDArray] = self.init_synergies(self.m_true)
-        self.true_S: npt.NDArray = self.build_S(self.true_s_list, self.m_true)
-        self.true_C: npt.NDArray = self.sparse_C()
-        self.V = self.V_est(self.true_S, self.true_C)
+        #self.true_s_list: list[npt.NDArray] = self.init_synergies(self.m_true)
+        #self.true_S: npt.NDArray = self.build_S(self.true_s_list, self.m_true)
+        #self.true_C: npt.NDArray = self.sparse_C()
+        #self.V = self.V_est(self.true_S, self.true_C)
 
         # Initialize synergies and S and C
         # These are starting 'guesses' (in C's case, everything is initialized to 0)
@@ -184,6 +185,8 @@ class BaseSynergyModel(ABC):
         S_scaled = scaler.fit_transform(self.S)
 
         for g in range(self.G):
+            if self.V is None:
+                raise ValueError("self.V cannot be None for sparse group lasso.")
             v_g = self.V[:, g]
 
             model = SGL(l1_ratio=self.lambda1, alpha=self.alpha, groups=groups)
@@ -273,18 +276,28 @@ class BaseSynergyModel(ABC):
     def S_loss(self) -> float:
         return np.sum((self.true_S - self.S)**2)
     
+    def V_grasp_loss(self, grasp: int) -> float:
+        # get the column of V that corresponds to grasp
+        V_col = self.V[:, grasp]
+        V_est_col = self.V_est(self.S, self.C)[:, grasp]
+
+        grasp_loss = np.sum((V_col - V_est_col)**2) / np.sum(V_col**2)
+        return grasp_loss
+    
     def V_loss(self) -> float:
-        """Uses squared L2 norm to calculate V loss.
+        """Uses the same formula in self.V_grasp_loss to calculate the total V loss.
 
         Params:
             None.
         Returns:
             float: The loss (difference in actual and predicted value of V and V_est, respectively, squared).
         """
-        return np.sum((self.V - self.V_est(self.S, self.C))**2)
+        V_est = self.V_est(self.S, self.C)
+        loss = np.sum((self.V - V_est)**2) / np.sum(self.V**2)
+        return loss
 
     def compare_V(self, compare: npt.NDArray, epoch: int) -> None:
-        """Comparison of V and estimated V.
+        """Comparison of V and estimated V (per grasp).
 
         Params:
             compare (npt.NDArray): Numpy array to compare with V.
@@ -292,22 +305,59 @@ class BaseSynergyModel(ABC):
         Returns:
             None.
         """
-        V_stacked = self.V.flatten()
-        V_est_stacked = self.V_est(self.S, self.C).flatten()
+        if self.V is None:
+            raise ValueError("self.V cannot be None for comparison.")
+        
+        V_est = self.V_est(self.S, self.C)
+        try:
+            for g in range(self.G):
+                plt.figure(figsize=(12, 4))
+                for i in range(self.n):
+                    plt.subplot(2, 5, i + 1)
+                    plt.plot(self.V[(i * self.T):((i + 1) * self.T), g], label="True v")
+                    plt.plot(V_est[(i * self.T):((i + 1) * self.T), g], label="Estimated v")
+                    plt.title(f"Joint {i + 1}")
+                plt.suptitle(f"Grasp {g + 1}")
+                plt.tight_layout()
+                plt.show()
 
-        plt.figure(figsize=(10,3))
-        plt.plot(V_stacked, label="True v")
-        plt.plot(V_est_stacked, label="Estimated v")
-        plt.title(f"v reconstruction at epoch {epoch}")
-        plt.xlabel("Time")
-        plt.ylabel("Amplitude")
-        plt.legend()
-        plt.grid(True)
-        plt.show()
+                # old code
+                """
+                plt.figure(figsize=(10,3))
+                plt.plot(self.V[:, g], label="True v")
+                plt.plot(V_est[:, g], label="Estimated v")
+                plt.title(f"v reconstruction at epoch {epoch}, grasp {g}, reconstruction error: {self.V_grasp_loss(g)}")
+                plt.xlabel("Time")
+                plt.ylabel("Amplitude")
+                plt.legend()
+                plt.grid(True)
+                plt.show()
+                """
+        except KeyboardInterrupt:
+            print("Keyboard Interrupt - skipping rest of loop.")
+
+    def plot_synergies(self) -> None:
+        """
+        """
+        for j in range(self.m):
+            plt.figure(figsize=(12, 4))
+            for i in range(self.n):
+                plt.subplot(2, 5, i + 1)
+                plt.plot(self.s_list[j][i, :], color="green")
+                plt.title(f"Joint {i + 1}")
+                #plt.xticks([])
+                #plt.yticks([])
+            plt.suptitle(f"Synergy {j + 1}")
+            plt.tight_layout()
+            plt.show()
     
     def active_synergies(self, tol: float = 1e-8) -> tuple[list[int], list[int], npt.NDArray]:
-        active, dropped = [], []
+        """
+        """
+        active: list[int] = [] 
+        dropped: list[int] = []
         group_norms = np.zeros(self.m)
+
         for j in range(self.m):
             block = self.C[self.C_mask(j), :]
             group_norm = np.linalg.norm(block, ord='fro')
