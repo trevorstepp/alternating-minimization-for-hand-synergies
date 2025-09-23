@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 import seaborn as sns # type: ignore
 from typing import Optional
 from groupyr import SGL # type: ignore
@@ -9,6 +10,8 @@ from abc import ABC, abstractmethod
 from sklearn import linear_model # type: ignore
 from sklearn.preprocessing import StandardScaler # type: ignore
 import sys
+
+from model.save_files import save_reconstruction_plot, save_synergy_plot
 
 #np.set_printoptions(precision=4, threshold=sys.maxsize, suppress=True)
 np.set_printoptions(precision=3, threshold=np.inf, linewidth=200)
@@ -204,9 +207,11 @@ class BaseSynergyModel(ABC):
         """
         norm = np.linalg.norm(self.s_list[index].flatten())
         # we only normalize if the norm is greater than a certain value
-        if norm > SYNERGY_NORM_MAX:
-            self.s_list[index] /= norm
-            self.C[self.C_mask(index), :] *= norm
+        #if norm > SYNERGY_NORM_MAX:
+        if norm < 1e-12:
+            return
+        self.s_list[index] /= norm
+        self.C[self.C_mask(index), :] *= norm
 
     def calc_residual(self, index: int) -> npt.NDArray:
         """Computes residuals with the contribution of the synergy at index removed.
@@ -311,28 +316,37 @@ class BaseSynergyModel(ABC):
         V_est = self.V_est(self.S, self.C)
         try:
             for g in range(self.G):
-                plt.figure(figsize=(12, 4))
-                for i in range(self.n):
-                    plt.subplot(2, 5, i + 1)
-                    plt.plot(self.V[(i * self.T):((i + 1) * self.T), g], label="True v")
-                    plt.plot(V_est[(i * self.T):((i + 1) * self.T), g], label="Estimated v")
-                    plt.title(f"Joint {i + 1}")
-                plt.suptitle(f"Grasp {g + 1}")
-                plt.tight_layout()
-                plt.show()
+                fig, axes = plt.subplots(self.n, 1, figsize=(6, 8), sharex=True)
+                # normalize axes to always be a list
+                if isinstance(axes, np.ndarray):
+                    axes_list: list[Axes] = axes.ravel().tolist()
+                else:
+                    axes_list: list[Axes] = [axes]
 
-                # old code
-                """
-                plt.figure(figsize=(10,3))
-                plt.plot(self.V[:, g], label="True v")
-                plt.plot(V_est[:, g], label="Estimated v")
-                plt.title(f"v reconstruction at epoch {epoch}, grasp {g}, reconstruction error: {self.V_grasp_loss(g)}")
-                plt.xlabel("Time")
-                plt.ylabel("Amplitude")
-                plt.legend()
-                plt.grid(True)
+                for i in range(self.n):
+                    ax: Axes = axes_list[i]
+                    true_v = self.V[(i * self.T):((i + 1) * self.T), g]
+                    est_v = V_est[(i * self.T):((i + 1) * self.T), g]
+
+                    # compute y-axis numbers to display
+                    max_val = max(np.abs(true_v).max(), np.abs(est_v).max())
+                    ax.set_ylim(-max_val, max_val)
+
+                    ax.plot(true_v, 'k', label="True V")
+                    ax.plot(est_v, 'r', label="Estimate V")
+
+                    if i == self.n - 1:
+                        ax.set_xlabel("Samples")
+                    if i == int(self.n / 2):
+                        ax.set_ylabel("Angular velocities of ten joints (radian/sample)")
+                        ax.set_xticks([0, 20, 40, 60, 80])
+
+                plt.tight_layout(rect=[0, 0, 1, 0.95])
+                fig.suptitle(f"Epoch {epoch}, Grasp {g + 1}, reconstruction error: {self.V_grasp_loss(g):.4f}")
+                save_reconstruction_plot(fig, g)
                 plt.show()
-                """
+                plt.close(fig)
+                
         except KeyboardInterrupt:
             print("Keyboard Interrupt - skipping rest of loop.")
 
@@ -340,16 +354,35 @@ class BaseSynergyModel(ABC):
         """
         """
         for j in range(self.m):
-            plt.figure(figsize=(12, 4))
+            fig, axes = plt.subplots(self.n, 1, figsize=(6, 8), sharex=True)
+            # normalize axes to always be a list
+            if isinstance(axes, np.ndarray):
+                axes_list: list[Axes] = axes.ravel().tolist()
+            else:
+                axes_list: list[Axes] = [axes]
+
             for i in range(self.n):
-                plt.subplot(2, 5, i + 1)
-                plt.plot(self.s_list[j][i, :], color="green")
-                plt.title(f"Joint {i + 1}")
-                #plt.xticks([])
-                #plt.yticks([])
-            plt.suptitle(f"Synergy {j + 1}")
-            plt.tight_layout()
+                ax: Axes = axes_list[i]
+                joint = self.s_list[j][i, :]
+
+                # compute y-axis numbers to display
+                max_val = np.abs(joint).max()
+                ax.set_ylim(-max_val, max_val)
+                ax.set_xlim(right=40)
+
+                ax.plot(joint, 'g', label="True V")
+
+                if i == self.n - 1:
+                    ax.set_xlabel("Samples")
+                if i == int(self.n / 2):
+                    ax.set_ylabel("Angular velocities of ten joints (radian/sample)")
+                    ax.set_xticks([0, 10, 20, 30, 40])
+
+            plt.tight_layout(rect=[0, 0, 1, 0.95])       
+            fig.suptitle(f"Synergy {j + 1}")
+            save_synergy_plot(fig, j)
             plt.show()
+            plt.close(fig)
     
     def active_synergies(self, tol: float = 1e-8) -> tuple[list[int], list[int], npt.NDArray]:
         """
@@ -364,6 +397,13 @@ class BaseSynergyModel(ABC):
             group_norms[j] = group_norm
             (active if group_norm > tol else dropped).append(j)
         return active, dropped, group_norms
+    
+    def surviving_synergy_density(self, active_synergies: list[int]) -> None:
+        for j in active_synergies:
+            block = self.C[self.C_mask(j), :]
+            zero = np.count_nonzero(np.abs(block) < 1e-8)
+            total = block.size
+            print(f"Synergy {j}: {zero} / {total} zero ({zero / total :.1%})")
 
     @abstractmethod
     def solve(self) -> None:
