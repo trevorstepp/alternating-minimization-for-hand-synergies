@@ -151,8 +151,12 @@ class BaseSynergyModel(ABC):
         B_j = np.vstack(B_blocks)
 
         # optimize using least squares, reshape into (n, t_s), normalize
-        s_new, *_ = np.linalg.lstsq(B_j, r_j, rcond=None)
-        self.s_list[index] = np.reshape(s_new, (self.n, self.t_s))
+        #s_new, *_ = np.linalg.lstsq(B_j, r_j, rcond=None)
+        #self.s_list[index] = np.reshape(s_new, (self.n, self.t_s))
+        clf = linear_model.Ridge(alpha=0.2)
+        clf.fit(B_j, r_j)
+        self.s_list[index] = np.reshape(clf.coef_, (self.n, self.t_s))
+
         self.normalize_synergy(index)
         self.update_S(self.s_list)
 
@@ -207,11 +211,11 @@ class BaseSynergyModel(ABC):
         """
         norm = np.linalg.norm(self.s_list[index].flatten())
         # we only normalize if the norm is greater than a certain value
-        #if norm > SYNERGY_NORM_MAX:
-        if norm < 1e-12:
-            return
-        self.s_list[index] /= norm
-        self.C[self.C_mask(index), :] *= norm
+        #if norm < 1e-12:
+            #return
+        if norm > SYNERGY_NORM_MAX:
+            self.s_list[index] /= norm
+            self.C[self.C_mask(index), :] *= norm
 
     def calc_residual(self, index: int) -> npt.NDArray:
         """Computes residuals with the contribution of the synergy at index removed.
