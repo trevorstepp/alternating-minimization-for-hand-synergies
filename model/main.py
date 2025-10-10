@@ -1,7 +1,7 @@
 from model.methods.alternating_min import AlternatingMinModel
 from model.methods.two_stage import TwoStage
 
-from model.utils.read_mat import load_natural_grasps
+from model.utils.read_files import load_natural_grasps
 from dotenv import load_dotenv
 
 load_dotenv()

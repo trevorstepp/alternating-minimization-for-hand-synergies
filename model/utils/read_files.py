@@ -25,7 +25,6 @@ def load_mat_file(subject: str, filename: str) -> tuple[int, int, int, npt.NDArr
     file_path = root_path / subject / filename
     data_dict = sio.loadmat(file_path)
     data: npt.NDArray = data_dict['testdata']
-    print(type(data))
     n, T, G = data.shape  # get number of joints, timesteps, and grasping tasks
     V = data.reshape(n * T, G)  # new V matrix
     return n, T, G, V
@@ -41,3 +40,11 @@ def load_asl(subject: str, filename: str) -> tuple[int, int, int, npt.NDArray]:
     """
     n, T, G, V = load_mat_file(subject, filename)
     return n, T, G, V
+
+def get_npz(filename: str) -> npt.NDArray:
+    """
+    """
+    curr_dir = Path(__file__).resolve().parent
+    npz_path = curr_dir / "results" / filename
+    data = np.load(npz_path)
+    return data['active_synergies']
