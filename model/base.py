@@ -2,7 +2,6 @@ import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-import seaborn as sns # type: ignore
 from typing import Optional
 from groupyr import SGL # type: ignore
 from abc import ABC, abstractmethod
@@ -11,7 +10,7 @@ from sklearn import linear_model # type: ignore
 from sklearn.preprocessing import StandardScaler # type: ignore
 import sys
 
-from model.save_files import save_reconstruction_plot, save_synergy_plot
+from model.utils.save_files import save_reconstruction_plot, save_synergy_plot, save_active_repeats
 
 #np.set_printoptions(precision=4, threshold=sys.maxsize, suppress=True)
 np.set_printoptions(precision=3, threshold=np.inf, linewidth=200)
@@ -153,7 +152,7 @@ class BaseSynergyModel(ABC):
         # optimize using least squares, reshape into (n, t_s), normalize
         #s_new, *_ = np.linalg.lstsq(B_j, r_j, rcond=None)
         #self.s_list[index] = np.reshape(s_new, (self.n, self.t_s))
-        clf = linear_model.Ridge(alpha=0.2)
+        clf = linear_model.Ridge(alpha=0.25)
         clf.fit(B_j, r_j)
         self.s_list[index] = np.reshape(clf.coef_, (self.n, self.t_s))
 
@@ -183,13 +182,15 @@ class BaseSynergyModel(ABC):
         return D_jk
 
     def sparse_group_lasso(self) -> None:
-        """
+        """Uses sparse group lasso to find the coefficients.
+
+        Params:
+            None.
+        Returns:
+            None.
         """
         indices = np.arange(self.m * self.K_j)
         groups = np.split(indices, self.m)
-
-        scaler = StandardScaler()
-        S_scaled = scaler.fit_transform(self.S)
 
         for g in range(self.G):
             if self.V is None:
@@ -197,7 +198,6 @@ class BaseSynergyModel(ABC):
             v_g = self.V[:, g]
 
             model = SGL(l1_ratio=self.lambda1, alpha=self.alpha, groups=groups)
-            #model.fit(S_scaled, v_g)
             model.fit(self.S, v_g)
             self.C[:, g] = model.coef_
 
@@ -371,7 +371,8 @@ class BaseSynergyModel(ABC):
 
                 # compute y-axis numbers to display
                 max_val = np.abs(joint).max()
-                ax.set_ylim(-max_val, max_val)
+                epsilon = 0.01
+                ax.set_ylim(-max_val - epsilon, max_val + epsilon)
                 ax.set_xlim(right=40)
 
                 ax.plot(joint, 'g', label="True V")
@@ -388,7 +389,7 @@ class BaseSynergyModel(ABC):
             plt.show()
             plt.close(fig)
     
-    def active_synergies(self, tol: float = 1e-8) -> tuple[list[int], list[int], npt.NDArray]:
+    def active_synergies(self, tol: float = 1e-6) -> tuple[list[int], list[int], npt.NDArray]:
         """
         """
         active: list[int] = [] 
@@ -402,10 +403,33 @@ class BaseSynergyModel(ABC):
             (active if group_norm > tol else dropped).append(j)
         return active, dropped, group_norms
     
+    def save_active_synergies(self, tol: float = 1e-6) -> npt.NDArray:
+        """Computes and saves the active shifts of the active synergies.
+
+        Params:
+            tol (float): Threshold that determines which coefficients in C are considered inactive.
+        Returns:
+            npt.NDArray: The reduced S matrix that contains only active shifts.
+        """
+        active, *_ = self.active_synergies(tol)
+        active_cols = []
+
+        for j in active:
+            C_block = self.C[self.C_mask(j), :]  # shape (K_j, G)
+            S_cols = self.S[:, self.C_mask(j)]  # corresponding S cols
+
+            # find shifts that have any nonzero coefficient across any grasp
+            active_shifts = np.any(np.abs(C_block) > tol, axis=1)
+            active_cols.append(S_cols[:, active_shifts])
+        
+        active_S = np.column_stack(active_cols)
+        save_active_repeats(active_S, tol)
+        return active_S
+    
     def surviving_synergy_density(self, active_synergies: list[int]) -> None:
         for j in active_synergies:
             block = self.C[self.C_mask(j), :]
-            zero = np.count_nonzero(np.abs(block) < 1e-8)
+            zero = np.count_nonzero(np.abs(block) < 1e-6)
             total = block.size
             print(f"Synergy {j}: {zero} / {total} zero ({zero / total :.1%})")
 

@@ -1,6 +1,7 @@
 from model.methods.alternating_min import AlternatingMinModel
 from model.methods.two_stage import TwoStage
-from model.read_mat import load_mat_data
+
+from model.utils.read_mat import load_natural_grasps
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,7 +11,7 @@ if __name__ == '__main__':
     subject = "subj1"
     filename = "Natural_Test_Data.mat"
 
-    n, T, G, V = load_mat_data(subject, filename)
+    n, T, G, V = load_natural_grasps(subject, filename)
     t_s = 39
     m = 10
     K_j = T - t_s + 1
@@ -20,6 +21,7 @@ if __name__ == '__main__':
     print("**Alternating Minimization Model Run**")
     #print(altMin.S.shape())
     altMin.solve()
+    altMin.save_active_synergies(tol=1e-6)
 
     print("\n\n")
 
