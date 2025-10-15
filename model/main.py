@@ -8,7 +8,7 @@ load_dotenv()
 
 if __name__ == '__main__':
 
-    subject = "subj1"
+    subject = "subj2"
     filename = "Natural_Test_Data.mat"
 
     n, T, G, V = load_natural_grasps(subject, filename)

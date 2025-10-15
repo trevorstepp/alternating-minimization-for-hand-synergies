@@ -5,6 +5,7 @@
 .env
 
 *.png
+*.zip
 mode/images/
 .mypy_cache/
 __pycache__/

@@ -336,8 +336,8 @@ class BaseSynergyModel(ABC):
                     max_val = max(np.abs(true_v).max(), np.abs(est_v).max())
                     ax.set_ylim(-max_val, max_val)
 
-                    ax.plot(true_v, 'k', label="True V")
-                    ax.plot(est_v, 'r', label="Estimate V")
+                    ax.plot(true_v, 'r', label="True V")
+                    ax.plot(est_v, 'k', label="Estimate V")
 
                     if i == self.n - 1:
                         ax.set_xlabel("Samples")
@@ -345,8 +345,12 @@ class BaseSynergyModel(ABC):
                         ax.set_ylabel("Angular velocities of ten joints (radian/sample)")
                         ax.set_xticks([0, 20, 40, 60, 80])
 
+                handles, labels = axes_list[0].get_legend_handles_labels()
+                fig.legend(handles, labels, loc="upper right", fontsize=8)
+
                 plt.tight_layout(rect=[0, 0, 1, 0.95])
                 fig.suptitle(f"Epoch {epoch}, Grasp {g + 1}, reconstruction error: {self.V_grasp_loss(g):.4f}")
+                
                 save_reconstruction_plot(fig, g)
                 plt.show()
                 plt.close(fig)

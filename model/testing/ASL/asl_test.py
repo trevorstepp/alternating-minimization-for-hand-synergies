@@ -28,6 +28,18 @@ class TestASL():
 
         grasp_loss = np.sum((V_col - V_est_col)**2) / np.sum(V_col**2)
         return grasp_loss
+    
+    def V_loss(self) -> float:
+        """Uses the same formula in self.grasp_loss to calculate the total V loss.
+
+        Params:
+            None.
+        Returns:
+            float: The loss (difference in actual and predicted value of V and V_est, respectively, squared).
+        """
+        V_est = self.V_est()
+        loss = np.sum((self.V - V_est)**2) / np.sum(self.V**2)
+        return loss
 
     def V_est(self) -> npt.NDArray:
         """
@@ -56,8 +68,8 @@ class TestASL():
                     max_val = max(np.abs(true_v).max(), np.abs(est_v).max())
                     ax.set_ylim(-max_val, max_val)
 
-                    ax.plot(true_v, 'k', label="True V")
-                    ax.plot(est_v, 'r', label="Estimate V")
+                    ax.plot(true_v, 'r', label="True V")
+                    ax.plot(est_v, 'k', label="Estimate V")
 
                     if i == self.n - 1:
                         ax.set_xlabel("Samples")
@@ -65,8 +77,12 @@ class TestASL():
                         ax.set_ylabel("Angular velocities of ten joints (radian/sample)")
                         ax.set_xticks([0, 20, 40, 60, 80])
 
+                handles, labels = axes_list[0].get_legend_handles_labels()
+                fig.legend(handles, labels, loc="upper right", fontsize=8)
+                
                 plt.tight_layout(rect=[0, 0, 1, 0.95])
                 fig.suptitle(f"Grasp {g + 1}, ASL reconstruction error: {self.grasp_loss(g):.4f}")
+
                 save_asl_plot(fig, g)
                 plt.show()
                 plt.close(fig)
@@ -76,6 +92,7 @@ class TestASL():
     
     def run(self) -> None:
         self.find_coeff()
+        print(f"V loss {self.V_loss()}")
         self.asl_reconstruction_plot()
 
 if __name__ == '__main__':
