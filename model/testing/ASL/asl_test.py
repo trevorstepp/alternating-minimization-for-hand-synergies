@@ -2,6 +2,7 @@ import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+from sklearn.linear_model import Lasso
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -12,14 +13,23 @@ load_dotenv()
 
 class TestASL():
     def __init__(self, subject: str, asl_filename: str, npz_filename: str):
-        self.n, self.T, self.G, self.V = load_asl(subject, asl_filename)
-        self.S_bank = get_npz(npz_filename)
+        self.subject = subject
+        self.n, self.T, self.G, self.V = load_asl(self.subject, asl_filename)
+        self.S_bank = get_npz(subject, npz_filename)
         self.C = np.zeros(shape=(self.S_bank.shape[1], self.G))
 
     def find_coeff(self) -> None:
         for g in range(self.G):
             v_g = self.V[:, g]
-            self.C[:, g], *_ = np.linalg.lstsq(self.S_bank, v_g, rcond=None)
+            #self.C[:, g], *_ = np.linalg.lstsq(self.S_bank, v_g, rcond=None)
+            lasso = Lasso(alpha=0.000075)
+            lasso.fit(self.S_bank, v_g)
+            self.C[:, g] = lasso.coef_
+
+            tol = 1e-4
+            mask = np.abs(lasso.coef_) > tol
+            count = np.sum(mask)
+            print(f"Number of selected columns of S (tol = {tol}): {count}")
 
     def grasp_loss(self, grasp: int) -> float:
         # get the column of V that corresponds to grasp
@@ -83,7 +93,7 @@ class TestASL():
                 plt.tight_layout(rect=[0, 0, 1, 0.95])
                 fig.suptitle(f"Grasp {g + 1}, ASL reconstruction error: {self.grasp_loss(g):.4f}")
 
-                save_asl_plot(fig, g)
+                save_asl_plot(fig, g, self.subject)
                 plt.show()
                 plt.close(fig)
 
@@ -98,7 +108,8 @@ class TestASL():
 if __name__ == '__main__':
     subject = "subj2"
     asl_filename = "ASL_Test_Data.mat"
-    npz_filename = "active_synergies_tol=1e-06.npz"
+    npz_filename = "active_synergies_tol=1e-04.npz"
     asl = TestASL(subject, asl_filename, npz_filename)
     # run
+    print(asl.S_bank.shape)
     asl.run()

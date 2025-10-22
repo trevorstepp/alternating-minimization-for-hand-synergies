@@ -15,13 +15,13 @@ if __name__ == '__main__':
     t_s = 39
     m = 10
     K_j = T - t_s + 1
-    lambda1 = 0.25  # combination between group lasso and lasso (0=group lasso, 1=lasso)
-    alpha = 0.00012  # overall regularization strength
-    altMin = AlternatingMinModel(T, t_s, m, n, K_j, G, V, lambda1=lambda1, alpha=alpha)
+    lambda1 = 0.45  # combination between group lasso and lasso (0=group lasso, 1=lasso)
+    alpha = 0.000175  # overall regularization strength
+    altMin = AlternatingMinModel(T, t_s, m, n, K_j, G, subject, V, lambda1=lambda1, alpha=alpha)
     print("**Alternating Minimization Model Run**")
     #print(altMin.S.shape())
     altMin.solve()
-    altMin.save_active_synergies(tol=1e-6)
+    altMin.save_active_synergies(tol=1e-4)
 
     print("\n\n")
 

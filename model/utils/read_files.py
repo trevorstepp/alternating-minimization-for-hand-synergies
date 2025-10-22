@@ -41,10 +41,10 @@ def load_asl(subject: str, filename: str) -> tuple[int, int, int, npt.NDArray]:
     n, T, G, V = load_mat_file(subject, filename)
     return n, T, G, V
 
-def get_npz(filename: str) -> npt.NDArray:
+def get_npz(subject: str, filename: str) -> npt.NDArray:
     """
     """
     curr_dir = Path(__file__).resolve().parent
-    npz_path = curr_dir / "results" / filename
+    npz_path = curr_dir / "results" / "npz_saved_synergies" / subject / filename
     data = np.load(npz_path)
     return data['active_synergies']

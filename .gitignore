@@ -6,6 +6,7 @@
 
 *.png
 *.zip
+*.npz
 mode/images/
 .mypy_cache/
 __pycache__/

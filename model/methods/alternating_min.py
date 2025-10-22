@@ -16,7 +16,7 @@ class AlternatingMinModel(BaseSynergyModel):
                 #print(f"C loss: {self.C_loss()}")
                 print(f"V loss {self.V_loss()}")
 
-                if (epoch + 1) % 4 == 0:
+                if (epoch + 1) % 10 == 0:
                     cont = input("Continue loop (y or n)? ")
                     if cont == 'n':
                         break
@@ -34,4 +34,4 @@ class AlternatingMinModel(BaseSynergyModel):
         print(f"Active: {active}; Dropped: {dropped}")
         print(f"Group norms: {group_norms}")
         print(f"Number of zero coefficients in C: {np.count_nonzero(np.abs(self.C) < 1e-8)} / {np.size(self.C)}")
-        self.surviving_synergy_density(active)
+        #self.surviving_synergy_density(active)

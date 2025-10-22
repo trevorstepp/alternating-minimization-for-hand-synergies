@@ -18,7 +18,7 @@ np.set_printoptions(precision=3, threshold=np.inf, linewidth=200)
 SYNERGY_NORM_MAX = 4.0
 
 class BaseSynergyModel(ABC):
-    def __init__(self, T: int, t_s: int, m: int, n: int, K_j: int, G: int, 
+    def __init__(self, T: int, t_s: int, m: int, n: int, K_j: int, G: int, subject: str, 
                  V: Optional[npt.NDArray] = None, seed: Optional[int] = None,
                  lambda1: float = 0.05, alpha: float = 0.05, epochs: int = 100):
         self.T = T  # duration of grasping task
@@ -28,6 +28,7 @@ class BaseSynergyModel(ABC):
         self.n = n  # number of joints
         self.K_j = K_j  # number of repeats for each synergy
         self.G = G  # number of grasping tasks
+        self.subject = subject  # the subject whose data we are using
         self.V: Optional[npt.NDArray] = V  # each column is a grasping task
         self.seed: Optional[int] = seed  # seed for init_synergies()
         self.lambda1 = lambda1  # combination between group lasso and lasso (0 is group lasso, 1 is lasso)
@@ -192,14 +193,48 @@ class BaseSynergyModel(ABC):
         indices = np.arange(self.m * self.K_j)
         groups = np.split(indices, self.m)
 
+        col_norms = np.linalg.norm(self.S, axis=0) + 1e-12
+        zero_cols = np.where(col_norms == 0)[0]
+        if zero_cols.size > 0:
+            col_norms[zero_cols] = 1.0
+        S_scaled = self.S / col_norms[np.newaxis, :]
+
         for g in range(self.G):
             if self.V is None:
                 raise ValueError("self.V cannot be None for sparse group lasso.")
             v_g = self.V[:, g]
 
             model = SGL(l1_ratio=self.lambda1, alpha=self.alpha, groups=groups)
-            model.fit(self.S, v_g)
-            self.C[:, g] = model.coef_
+            #model.fit(self.S, v_g)
+            #self.C[:, g] = model.coef_
+            model.fit(S_scaled, v_g)
+            coef = model.coef_ / col_norms
+            self.C[:, g] = coef
+
+            # ---------------- Diagnostics ----------------
+            nonzero = np.count_nonzero(np.abs(coef) > 1e-8)
+            print(f"\nGrasp {g+1}: {nonzero} / {coef.size} nonzero coefficients")
+
+            # show top 10 by magnitude
+            top_idx = np.argsort(np.abs(coef))[::-1][:10]
+            print("  Top |coef|:", np.round(np.abs(coef[top_idx]), 4))
+
+            # per-group diagnostics
+            for j in range(self.m):
+                block = coef[self.C_mask(j)]
+                nonzero_block = np.count_nonzero(np.abs(block) > 1e-8)
+                max_block = np.max(np.abs(block))
+                print(f"   Group {j+1}: {nonzero_block:2d}/{block.size} active, max={max_block:.3e}")
+
+            # optional: check collinearity (just for first grasp to avoid clutter)
+            if g == 0:
+                j0 = 1  # choose which synergy to inspect (0-indexed)
+                idx = self.C_mask(j0)
+                S_block = self.S[:, idx]
+                Szn = S_block / (np.linalg.norm(S_block, axis=0) + 1e-12)
+                corrs = Szn.T @ Szn
+                upper = corrs[np.triu_indices_from(corrs, k=1)]
+                print(f"   Cosine sim (Group {j0+1}): mean={upper.mean():.3f}, max={upper.max():.3f}")
 
     def normalize_synergy(self, index: int) -> None:
         """Normalizes a synergy to remove scaling ambiguity.
@@ -351,7 +386,7 @@ class BaseSynergyModel(ABC):
                 plt.tight_layout(rect=[0, 0, 1, 0.95])
                 fig.suptitle(f"Epoch {epoch}, Grasp {g + 1}, reconstruction error: {self.V_grasp_loss(g):.4f}")
                 
-                save_reconstruction_plot(fig, g)
+                save_reconstruction_plot(fig, g, self.subject)
                 plt.show()
                 plt.close(fig)
                 
@@ -385,11 +420,11 @@ class BaseSynergyModel(ABC):
                     ax.set_xlabel("Samples")
                 if i == int(self.n / 2):
                     ax.set_ylabel("Angular velocities of ten joints (radian/sample)")
-                    ax.set_xticks([0, 10, 20, 30, 40])
+                    ax.set_xticks([0, 10, 20, 30, 40, 50, 60])
 
             plt.tight_layout(rect=[0, 0, 1, 0.95])       
             fig.suptitle(f"Synergy {j + 1}")
-            save_synergy_plot(fig, j)
+            save_synergy_plot(fig, j, self.subject)
             plt.show()
             plt.close(fig)
     
@@ -423,17 +458,22 @@ class BaseSynergyModel(ABC):
             S_cols = self.S[:, self.C_mask(j)]  # corresponding S cols
 
             # find shifts that have any nonzero coefficient across any grasp
+            print(f"Synergy {j+1}: C_block shape={C_block.shape}, max|coef|={np.max(np.abs(C_block)):.3e}")
+            print("Row max abs:", np.round(np.max(np.abs(C_block), axis=1), 5))
+
             active_shifts = np.any(np.abs(C_block) > tol, axis=1)
             active_cols.append(S_cols[:, active_shifts])
+            print(f"Number of active repeats for synergy {j + 1}: {np.sum(active_shifts)}")
         
         active_S = np.column_stack(active_cols)
-        save_active_repeats(active_S, tol)
+        save_active_repeats(active_S, self.subject, tol)
+        print(active_S.shape)
         return active_S
     
     def surviving_synergy_density(self, active_synergies: list[int]) -> None:
         for j in active_synergies:
             block = self.C[self.C_mask(j), :]
-            zero = np.count_nonzero(np.abs(block) < 1e-6)
+            zero = np.count_nonzero(np.abs(block) < 1e-4)
             total = block.size
             print(f"Synergy {j}: {zero} / {total} zero ({zero / total :.1%})")
 
