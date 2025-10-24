@@ -21,6 +21,8 @@ if __name__ == '__main__':
     print("**Alternating Minimization Model Run**")
     #print(altMin.S.shape())
     altMin.solve()
+    print("\n")
+    altMin.print_synergy_norms()
     altMin.save_active_synergies(tol=1e-4)
 
     print("\n\n")

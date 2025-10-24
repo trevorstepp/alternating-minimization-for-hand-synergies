@@ -16,7 +16,7 @@ class AlternatingMinModel(BaseSynergyModel):
                 #print(f"C loss: {self.C_loss()}")
                 print(f"V loss {self.V_loss()}")
 
-                if (epoch + 1) % 10 == 0:
+                if (epoch + 1) % 5 == 0:
                     cont = input("Continue loop (y or n)? ")
                     if cont == 'n':
                         break

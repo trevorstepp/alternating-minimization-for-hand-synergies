@@ -420,7 +420,7 @@ class BaseSynergyModel(ABC):
                     ax.set_xlabel("Samples")
                 if i == int(self.n / 2):
                     ax.set_ylabel("Angular velocities of ten joints (radian/sample)")
-                    ax.set_xticks([0, 10, 20, 30, 40, 50, 60])
+                    ax.set_xticks([0, 10, 20, 30, 40])
 
             plt.tight_layout(rect=[0, 0, 1, 0.95])       
             fig.suptitle(f"Synergy {j + 1}")
@@ -476,6 +476,14 @@ class BaseSynergyModel(ABC):
             zero = np.count_nonzero(np.abs(block) < 1e-4)
             total = block.size
             print(f"Synergy {j}: {zero} / {total} zero ({zero / total :.1%})")
+
+    def print_synergy_norms(self) -> None:
+        """Prints the Frobenius norm of each synergy for diagnostic purposes."""
+        norms = [np.linalg.norm(s) for s in self.s_list]
+        print("\nSynergy norms:")
+        for j, norm in enumerate(norms):
+            print(f"  Synergy {j+1:2d}: {norm:.6f}")
+        print(f"  Mean norm: {np.mean(norms):.6f}, Std: {np.std(norms):.6f}")
 
     @abstractmethod
     def solve(self) -> None:

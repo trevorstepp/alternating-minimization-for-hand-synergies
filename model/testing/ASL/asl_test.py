@@ -2,7 +2,8 @@ import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from sklearn.linear_model import Lasso
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import Lasso, LassoCV
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -19,17 +20,28 @@ class TestASL():
         self.C = np.zeros(shape=(self.S_bank.shape[1], self.G))
 
     def find_coeff(self) -> None:
+        scaler = StandardScaler()
+        S_scaled = scaler.fit_transform(self.S_bank)
+
         for g in range(self.G):
             v_g = self.V[:, g]
-            #self.C[:, g], *_ = np.linalg.lstsq(self.S_bank, v_g, rcond=None)
-            lasso = Lasso(alpha=0.000075)
-            lasso.fit(self.S_bank, v_g)
-            self.C[:, g] = lasso.coef_
+            v_norm = np.linalg.norm(v_g)
+            if v_norm > 1e-8:
+                v_g_scaled = v_g / v_norm
+            else:
+                v_g_scaled = v_g.copy()
 
-            tol = 1e-4
+            lasso = Lasso(alpha=0.0025, max_iter=10000)
+            #lasso.fit(self.S_bank, v_g)
+            #self.C[:, g] = lasso.coef_
+            lasso.fit(S_scaled, v_g_scaled)
+            self.C[:, g] = lasso.coef_ / (v_norm if v_norm > 0 else 1.0)
+            self.C[:, g] /= scaler.scale_
+
+            tol = 1e-3
             mask = np.abs(lasso.coef_) > tol
             count = np.sum(mask)
-            print(f"Number of selected columns of S (tol = {tol}): {count}")
+            print(f"Grasp {g + 1}: Number of selected columns of S (tol = {tol}): {count}, v_norm = {v_norm}")
 
     def grasp_loss(self, grasp: int) -> float:
         # get the column of V that corresponds to grasp
