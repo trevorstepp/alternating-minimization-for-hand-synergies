@@ -15,7 +15,8 @@ from model.utils.save_files import save_reconstruction_plot, save_synergy_plot, 
 #np.set_printoptions(precision=4, threshold=sys.maxsize, suppress=True)
 np.set_printoptions(precision=3, threshold=np.inf, linewidth=200)
 
-SYNERGY_NORM_MAX = 4.0
+#SYNERGY_NORM_MAX = 4.0
+SYNERGY_NORM_MAX = 1e-8
 
 class BaseSynergyModel(ABC):
     def __init__(self, T: int, t_s: int, m: int, n: int, K_j: int, G: int, subject: str, 
@@ -153,7 +154,7 @@ class BaseSynergyModel(ABC):
         # optimize using least squares, reshape into (n, t_s), normalize
         #s_new, *_ = np.linalg.lstsq(B_j, r_j, rcond=None)
         #self.s_list[index] = np.reshape(s_new, (self.n, self.t_s))
-        clf = linear_model.Ridge(alpha=0.25)
+        clf = linear_model.Ridge(alpha=0.3)
         clf.fit(B_j, r_j)
         self.s_list[index] = np.reshape(clf.coef_, (self.n, self.t_s))
 

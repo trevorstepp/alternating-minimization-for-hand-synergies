@@ -13,32 +13,44 @@ from model.utils.save_files import save_asl_plot
 load_dotenv()
 
 class TestASL():
-    def __init__(self, subject: str, asl_filename: str, npz_filename: str):
+    def __init__(self, subject: str, asl_filename: str, npz_filename: str, alpha: float):
         self.subject = subject
+        self.alpha = alpha
         self.n, self.T, self.G, self.V = load_asl(self.subject, asl_filename)
         self.S_bank = get_npz(subject, npz_filename)
         self.C = np.zeros(shape=(self.S_bank.shape[1], self.G))
 
     def find_coeff(self) -> None:
+        tol=1e-3
         scaler = StandardScaler()
         S_scaled = scaler.fit_transform(self.S_bank)
-
         for g in range(self.G):
+            alpha = self.alpha
             v_g = self.V[:, g]
             v_norm = np.linalg.norm(v_g)
             if v_norm > 1e-8:
                 v_g_scaled = v_g / v_norm
             else:
                 v_g_scaled = v_g.copy()
+           
+            while True:
+                lasso = Lasso(alpha=alpha, max_iter=10000)
+                lasso.fit(self.S_bank, v_g)
+                self.C[:, g] = lasso.coef_
+                mask = np.abs(lasso.coef_) > tol
+                count = np.sum(mask)
 
-            lasso = Lasso(alpha=0.0025, max_iter=10000)
-            #lasso.fit(self.S_bank, v_g)
-            #self.C[:, g] = lasso.coef_
-            lasso.fit(S_scaled, v_g_scaled)
-            self.C[:, g] = lasso.coef_ / (v_norm if v_norm > 0 else 1.0)
-            self.C[:, g] /= scaler.scale_
+                if(((count < 6 and self.grasp_loss(g) > 0.2) or self.grasp_loss(g) > 0.3) and count <= 15):
+                    alpha /= 1.05
+                    #print(f"{g + 1}: Repeat")
+                else:
+                    #print(f"{g + 1}: Done")
+                    break
 
-            tol = 1e-3
+            #lasso.fit(S_scaled, v_g_scaled)
+            #self.C[:, g] = lasso.coef_ / (v_norm if v_norm > 0 else 1.0)
+            #self.C[:, g] /= scaler.scale_
+
             mask = np.abs(lasso.coef_) > tol
             count = np.sum(mask)
             print(f"Grasp {g + 1}: Number of selected columns of S (tol = {tol}): {count}, v_norm = {v_norm}")
@@ -121,7 +133,7 @@ if __name__ == '__main__':
     subject = "subj2"
     asl_filename = "ASL_Test_Data.mat"
     npz_filename = "active_synergies_tol=1e-04.npz"
-    asl = TestASL(subject, asl_filename, npz_filename)
+    asl = TestASL(subject, asl_filename, npz_filename, alpha=0.001)
     # run
     print(asl.S_bank.shape)
     asl.run()
