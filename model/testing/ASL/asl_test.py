@@ -2,8 +2,8 @@ import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import Lasso, LassoCV
+from sklearn.linear_model import Lasso
+from groupyr import SGL
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -20,18 +20,12 @@ class TestASL():
         self.S_bank = get_npz(subject, npz_filename)
         self.C = np.zeros(shape=(self.S_bank.shape[1], self.G))
 
-    def find_coeff(self) -> None:
+    def lasso(self) -> None:
         tol=1e-3
-        scaler = StandardScaler()
-        S_scaled = scaler.fit_transform(self.S_bank)
         for g in range(self.G):
             alpha = self.alpha
             v_g = self.V[:, g]
             v_norm = np.linalg.norm(v_g)
-            if v_norm > 1e-8:
-                v_g_scaled = v_g / v_norm
-            else:
-                v_g_scaled = v_g.copy()
            
             while True:
                 lasso = Lasso(alpha=alpha, max_iter=10000)
@@ -40,16 +34,12 @@ class TestASL():
                 mask = np.abs(lasso.coef_) > tol
                 count = np.sum(mask)
 
-                if(((count < 6 and self.grasp_loss(g) > 0.2) or self.grasp_loss(g) > 0.3) and count <= 15):
+                if(((count < 8 and self.grasp_loss(g) > 0.2) or self.grasp_loss(g) > 0.3) and count <= 15):
                     alpha /= 1.05
                     #print(f"{g + 1}: Repeat")
                 else:
                     #print(f"{g + 1}: Done")
                     break
-
-            #lasso.fit(S_scaled, v_g_scaled)
-            #self.C[:, g] = lasso.coef_ / (v_norm if v_norm > 0 else 1.0)
-            #self.C[:, g] /= scaler.scale_
 
             mask = np.abs(lasso.coef_) > tol
             count = np.sum(mask)
@@ -125,7 +115,7 @@ class TestASL():
                 print("Keyboard Interrupt - skipping rest of loop.")
     
     def run(self) -> None:
-        self.find_coeff()
+        self.lasso()
         print(f"V loss {self.V_loss()}")
         self.asl_reconstruction_plot()
 
