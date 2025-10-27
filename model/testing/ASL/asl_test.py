@@ -17,24 +17,32 @@ class TestASL():
         self.subject = subject
         self.alpha = alpha
         self.n, self.T, self.G, self.V = load_asl(self.subject, asl_filename)
-        self.S_bank = get_npz(subject, npz_filename)
+        self.S_bank_t = get_npz(subject, npz_filename)
+        keep = []
+        for col in range(self.S_bank_t.shape[1]):
+            if col % 2 == 0:
+                keep.append(self.S_bank_t[:, col])
+        self.S_bank = np.column_stack(keep)
+
         self.C = np.zeros(shape=(self.S_bank.shape[1], self.G))
 
     def lasso(self) -> None:
         tol=1e-3
+        all_losses = []
+        all_counts = []
         for g in range(self.G):
             alpha = self.alpha
             v_g = self.V[:, g]
             v_norm = np.linalg.norm(v_g)
            
             while True:
-                lasso = Lasso(alpha=alpha, max_iter=10000)
+                lasso = Lasso(alpha=alpha, max_iter=1000)
                 lasso.fit(self.S_bank, v_g)
                 self.C[:, g] = lasso.coef_
                 mask = np.abs(lasso.coef_) > tol
                 count = np.sum(mask)
 
-                if(((count < 8 and self.grasp_loss(g) > 0.2) or self.grasp_loss(g) > 0.3) and count <= 15):
+                if(((count < 8 and self.grasp_loss(g) > 0.25) or self.grasp_loss(g) > 0.35) and count <= 15):
                     alpha /= 1.05
                     #print(f"{g + 1}: Repeat")
                 else:
@@ -43,7 +51,23 @@ class TestASL():
 
             mask = np.abs(lasso.coef_) > tol
             count = np.sum(mask)
-            print(f"Grasp {g + 1}: Number of selected columns of S (tol = {tol}): {count}, v_norm = {v_norm}")
+            loss = self.grasp_loss(g)
+            all_losses.append(loss)
+            all_counts.append(count)
+            print(f"Grasp {g + 1}: Number of selected columns of S (tol = {tol}): {count}, v_norm = {v_norm}, loss = {self.grasp_loss(g):.4f}")
+
+        total_loss = np.mean(all_losses)
+        total_sparsity = np.mean(all_counts)
+        print("\n===== ASL Reconstruction Diagnostics =====")
+        print(f"Mean per-grasp loss: {total_loss:.4f}")
+        print(f"Mean number of selected synergies: {total_sparsity:.2f}")
+        print(f"Total V-loss (across all grasps): {self.V_loss():.4f}")
+
+        # Per-synergy usage (how often each synergy shift was active)
+        usage_counts = np.sum(np.abs(self.C) > tol, axis=1)
+        top_used = np.argsort(-usage_counts)[:10]  # top 10 active columns
+        print(f"Most used synergy shifts (indices): {top_used}")
+        print(f"Usage counts of top shifts: {usage_counts[top_used]}")
 
     def grasp_loss(self, grasp: int) -> float:
         # get the column of V that corresponds to grasp
@@ -116,14 +140,14 @@ class TestASL():
     
     def run(self) -> None:
         self.lasso()
-        print(f"V loss {self.V_loss()}")
+        #print(f"V loss {self.V_loss()}")
         self.asl_reconstruction_plot()
 
 if __name__ == '__main__':
     subject = "subj2"
     asl_filename = "ASL_Test_Data.mat"
     npz_filename = "active_synergies_tol=1e-04.npz"
-    asl = TestASL(subject, asl_filename, npz_filename, alpha=0.001)
+    asl = TestASL(subject, asl_filename, npz_filename, alpha=0.1)
     # run
     print(asl.S_bank.shape)
     asl.run()
