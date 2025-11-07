@@ -3,7 +3,6 @@ import numpy.typing as npt
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from sklearn.linear_model import Lasso
-from groupyr import SGL
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -18,13 +17,23 @@ class TestASL():
         self.alpha = alpha
         self.n, self.T, self.G, self.V = load_asl(self.subject, asl_filename)
         self.S_bank_t = get_npz(subject, npz_filename)
-        keep = []
-        for col in range(self.S_bank_t.shape[1]):
-            if col % 2 == 0:
-                keep.append(self.S_bank_t[:, col])
-        self.S_bank = np.column_stack(keep)
-
+        self.S_bank, kept = self.prune_correlated(self.S_bank_t, threshold=0.8)
+        print(f"Kept {len(kept)} out of {self.S_bank_t.shape[1]} columns after correlation pruning.")
         self.C = np.zeros(shape=(self.S_bank.shape[1], self.G))
+
+    def prune_correlated(self, S: npt.NDArray, threshold: float=0.9) -> npt.NDArray:
+        """
+        """
+        corr_matrix = np.corrcoef(S, rowvar=False)
+        np.fill_diagonal(corr_matrix, 0)
+        to_remove = set()
+        for i in range(corr_matrix.shape[0]):
+            if i in to_remove:
+                continue
+            high_corr = np.where(np.abs(corr_matrix[i]) > threshold)[0]
+            to_remove.update(high_corr)
+        keep_indices = [i for i in range(S.shape[1]) if i not in to_remove]
+        return S[:, keep_indices], keep_indices
 
     def lasso(self) -> None:
         tol=1e-3
@@ -34,7 +43,7 @@ class TestASL():
             alpha = self.alpha
             v_g = self.V[:, g]
             v_norm = np.linalg.norm(v_g)
-           
+
             while True:
                 lasso = Lasso(alpha=alpha, max_iter=1000)
                 lasso.fit(self.S_bank, v_g)
@@ -42,7 +51,7 @@ class TestASL():
                 mask = np.abs(lasso.coef_) > tol
                 count = np.sum(mask)
 
-                if(((count < 8 and self.grasp_loss(g) > 0.25) or self.grasp_loss(g) > 0.35) and count <= 15):
+                if(((count < 8 and self.grasp_loss(g) > 0.15) or self.grasp_loss(g) > 0.25) and count <= 15):
                     alpha /= 1.05
                     #print(f"{g + 1}: Repeat")
                 else:
