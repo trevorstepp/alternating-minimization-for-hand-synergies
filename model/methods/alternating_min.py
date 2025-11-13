@@ -28,7 +28,9 @@ class AlternatingMinModel(BaseSynergyModel):
 
         #self.compare_V(self.V_est(self.true_S, self.true_C), epoch) 
         self.compare_V(self.V_est(self.S, self.C), epoch + 1) 
-        self.plot_synergies()
+        save = input("Save synergies (y or n)? ")
+        if(save == 'y'):
+            self.plot_synergies()
 
         active, dropped, group_norms = self.active_synergies()
         print(f"Active: {active}; Dropped: {dropped}")
