@@ -17,7 +17,7 @@ class TestASL():
         self.alpha = alpha
         self.n, self.T, self.G, self.V = load_asl(self.subject, asl_filename)
         self.S_bank_t = get_npz(subject, npz_filename)
-        self.S_bank, kept = self.prune_correlated(self.S_bank_t, threshold=0.75)
+        self.S_bank, kept = self.prune_correlated(self.S_bank_t, threshold=0.8)
         print(f"Kept {len(kept)} out of {self.S_bank_t.shape[1]} columns after correlation pruning.")
         self.C = np.zeros(shape=(self.S_bank.shape[1], self.G))
 

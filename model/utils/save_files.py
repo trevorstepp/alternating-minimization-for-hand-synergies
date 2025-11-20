@@ -1,5 +1,6 @@
 from pathlib import Path
 from matplotlib.figure import Figure
+import scipy.io as sio
 import numpy as np
 import numpy.typing as npt
 
@@ -57,3 +58,17 @@ def save_active_repeats(active_synergies: npt.NDArray, subject: str, tol: float 
     subj_dir = get_subj_dir(NPZ_SYNERGIES_DIR, subject)
     # save in .npz
     np.savez(subj_dir / f"active_synergies_tol={tol:.0e}.npz", active_synergies=active_synergies)
+
+def save_synergies_mat(s_list: list[npt.NDArray], active: list[int], subject: str) -> None:
+    """
+    """
+    subj_dir = get_subj_dir(NPZ_SYNERGIES_DIR, subject)
+
+    # stack synergies into 3d array
+    synergies = np.stack([s_list[j] for j in active], axis=2)
+    # save in .mat
+    mat_file = subj_dir / f"subj{subject}_synergies.mat"
+    sio.savemat(mat_file, {"synergies": synergies})
+
+    # confirmation
+    print(f"Saved {len(active)} synergies to {mat_file} with shape {synergies.shape}")

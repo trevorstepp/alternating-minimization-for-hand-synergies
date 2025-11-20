@@ -48,3 +48,12 @@ def get_npz(subject: str, filename: str) -> npt.NDArray:
     npz_path = curr_dir / "results" / "npz_saved_synergies" / subject / filename
     data = np.load(npz_path)
     return data['active_synergies']
+
+def verify_saved_synergies(subject: str, filename: str) -> npt.NDArray:
+    """
+    """
+    curr_dir = Path(__file__).resolve().parent
+    mat_path = curr_dir / "results" / "npz_saved_synergies" / subject / filename
+    mat_file = sio.loadmat(mat_path)
+    saved_synergies = mat_file["synergies"]  # shape (10, 39, m_active)
+    return saved_synergies

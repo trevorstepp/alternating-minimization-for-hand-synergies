@@ -1,5 +1,6 @@
 from model.base import BaseSynergyModel
 import numpy as np
+from model.utils.read_files import verify_saved_synergies
 
 class AlternatingMinModel(BaseSynergyModel):
     def solve(self) -> None:
@@ -32,8 +33,19 @@ class AlternatingMinModel(BaseSynergyModel):
         if(save == 'y'):
             self.plot_synergies()
 
+        #self.print_synergy_norms()
+        self.save_active_synergies(tol=1e-4)
+
         active, dropped, group_norms = self.active_synergies()
         print(f"Active: {active}; Dropped: {dropped}")
         print(f"Group norms: {group_norms}")
         print(f"Number of zero coefficients in C: {np.count_nonzero(np.abs(self.C) < 1e-8)} / {np.size(self.C)}")
-        #self.surviving_synergy_density(active)
+
+        expected_synergies = np.stack([self.s_list[j] for j in active], axis=2)
+        saved_synergies = verify_saved_synergies(self.subject, f"subj{self.subject}_synergies.mat")
+
+        print("Saved synergies shape:", saved_synergies.shape)
+        print("Expected synergies shape:", expected_synergies.shape)
+
+        if np.array_equal(expected_synergies, saved_synergies):
+            print("SUCCESS: saved synergies match")

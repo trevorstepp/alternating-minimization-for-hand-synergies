@@ -10,7 +10,7 @@ from sklearn import linear_model # type: ignore
 from sklearn.preprocessing import StandardScaler # type: ignore
 import sys
 
-from model.utils.save_files import save_reconstruction_plot, save_synergy_plot, save_active_repeats
+from model.utils.save_files import save_reconstruction_plot, save_synergy_plot, save_active_repeats, save_synergies_mat
 
 #np.set_printoptions(precision=4, threshold=sys.maxsize, suppress=True)
 np.set_printoptions(precision=3, threshold=np.inf, linewidth=200)
@@ -154,7 +154,7 @@ class BaseSynergyModel(ABC):
         # optimize using least squares, reshape into (n, t_s), normalize
         #s_new, *_ = np.linalg.lstsq(B_j, r_j, rcond=None)
         #self.s_list[index] = np.reshape(s_new, (self.n, self.t_s))
-        clf = linear_model.Ridge(alpha=0.3)
+        clf = linear_model.Ridge(alpha=0.25)
         clf.fit(B_j, r_j)
         self.s_list[index] = np.reshape(clf.coef_, (self.n, self.t_s))
 
@@ -467,7 +467,10 @@ class BaseSynergyModel(ABC):
             print(f"Number of active repeats for synergy {j + 1}: {np.sum(active_shifts)}")
         
         active_S = np.column_stack(active_cols)
+        # save entire matrix of active shifts
         save_active_repeats(active_S, self.subject, tol)
+        # save active synergies only in .mat
+        save_synergies_mat(self.s_list, active, self.subject)
         print(active_S.shape)
         return active_S
     

@@ -7,6 +7,7 @@
 *.png
 *.zip
 *.npz
+*.mat
 mode/images/
 .mypy_cache/
 __pycache__/
