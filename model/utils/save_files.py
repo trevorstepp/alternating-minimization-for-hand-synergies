@@ -67,7 +67,7 @@ def save_synergies_mat(s_list: list[npt.NDArray], active: list[int], subject: st
     # stack synergies into 3d array
     synergies = np.stack([s_list[j] for j in active], axis=2)
     # save in .mat
-    mat_file = subj_dir / f"subj{subject}_synergies.mat"
+    mat_file = subj_dir / f"{subject}_synergies.mat"
     sio.savemat(mat_file, {"synergies": synergies})
 
     # confirmation

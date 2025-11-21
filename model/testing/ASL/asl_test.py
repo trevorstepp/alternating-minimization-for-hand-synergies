@@ -1,3 +1,6 @@
+import cvxpy as cp
+from scipy.signal import savgol_filter
+
 import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
@@ -18,6 +21,7 @@ class TestASL():
         self.n, self.T, self.G, self.V = load_asl(self.subject, asl_filename)
         self.S_bank_t = get_npz(subject, npz_filename)
         self.S_bank, kept = self.prune_correlated(self.S_bank_t, threshold=0.8)
+        self.S_bank = savgol_filter(self.S_bank, window_length=11, polyorder=3, axis=0)
         print(f"Kept {len(kept)} out of {self.S_bank_t.shape[1]} columns after correlation pruning.")
         self.C = np.zeros(shape=(self.S_bank.shape[1], self.G))
 
@@ -48,17 +52,19 @@ class TestASL():
                 lasso = Lasso(alpha=alpha, max_iter=1000)
                 lasso.fit(self.S_bank, v_g)
                 self.C[:, g] = lasso.coef_
-                mask = np.abs(lasso.coef_) > tol
+                mask = np.abs(self.C[:, g]) > tol
                 count = np.sum(mask)
-
+                """
                 if(((count < 8 and self.grasp_loss(g) > 0.15) or self.grasp_loss(g) > 0.25) and count <= 15):
                     alpha /= 1.05
                     #print(f"{g + 1}: Repeat")
                 else:
                     #print(f"{g + 1}: Done")
                     break
+                """
+                break
 
-            mask = np.abs(lasso.coef_) > tol
+            mask = np.abs(self.C[:, g]) > tol
             count = np.sum(mask)
             loss = self.grasp_loss(g)
             all_losses.append(loss)
@@ -77,6 +83,23 @@ class TestASL():
         top_used = np.argsort(-usage_counts)[:10]  # top 10 active columns
         print(f"Most used synergy shifts (indices): {top_used}")
         print(f"Usage counts of top shifts: {usage_counts[top_used]}")
+    
+    def smooth_lasso(self, synergy_bank, target_signal, lasso_weight, smoothness_weight):
+        """
+        """
+        num_shifts = synergy_bank.shape[1]
+        coefs = cp.Variable(num_shifts)
+
+        # first-difference matrix
+        diff_matrix = np.eye(synergy_bank.shape[0])[:-1] - np.eye(synergy_bank.shape[0])[1:]
+
+        predicted_signal = synergy_bank @ coefs
+        objective = (0.5 * cp.sum_squares(target_signal - predicted_signal)
+            + lasso_weight * cp.norm1(coefs) + smoothness_weight * cp.sum_squares(predicted_signal)
+        )
+        problem = cp.Problem(cp.Minimize(objective))
+        problem.solve()
+        return coefs.value
 
     def grasp_loss(self, grasp: int) -> float:
         # get the column of V that corresponds to grasp
@@ -156,7 +179,7 @@ if __name__ == '__main__':
     subject = "subj2"
     asl_filename = "ASL_Test_Data.mat"
     npz_filename = "active_synergies_tol=1e-04.npz"
-    asl = TestASL(subject, asl_filename, npz_filename, alpha=0.1)
+    asl = TestASL(subject, asl_filename, npz_filename, alpha=0.00005)
     # run
     print(asl.S_bank.shape)
     asl.run()
