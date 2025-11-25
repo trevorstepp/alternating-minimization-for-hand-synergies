@@ -57,3 +57,6 @@ def verify_saved_synergies(subject: str, filename: str) -> npt.NDArray:
     mat_file = sio.loadmat(mat_path)
     saved_synergies = mat_file["synergies"]  # shape (10, 39, m_active)
     return saved_synergies
+
+if __name__ == '__main__':
+    print(verify_saved_synergies(subject="subj2", filename="subj2_synergies.mat").shape)

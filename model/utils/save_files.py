@@ -7,6 +7,7 @@ import numpy.typing as npt
 THIS_DIR = Path(__file__).resolve().parent
 
 RESULTS_DIR = THIS_DIR / "results"
+ASL_RECONSTRUCTION_MAT_DIR = RESULTS_DIR / "asl_reconstruction_mat"
 NPZ_SYNERGIES_DIR = RESULTS_DIR / "npz_saved_synergies"
 IMAGES_DIR = RESULTS_DIR / "images"
 SYNERGY_DIR = IMAGES_DIR / "synergies"
@@ -15,6 +16,7 @@ ASL_DIR = IMAGES_DIR / "asl_reconstruction"
 
 # build folders if they do not already exist
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+ASL_RECONSTRUCTION_MAT_DIR.mkdir(parents=True, exist_ok=True)
 NPZ_SYNERGIES_DIR.mkdir(parents=True, exist_ok=True)
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 SYNERGY_DIR.mkdir(parents=True, exist_ok=True)
@@ -72,3 +74,15 @@ def save_synergies_mat(s_list: list[npt.NDArray], active: list[int], subject: st
 
     # confirmation
     print(f"Saved {len(active)} synergies to {mat_file} with shape {synergies.shape}")
+
+def save_grasp_mat(v_data: npt.NDArray, filename: str, subject: str) -> None:
+    """
+    """
+    subj_dir = get_subj_dir(ASL_RECONSTRUCTION_MAT_DIR, subject)
+
+    # save in .mat
+    mat_file = subj_dir / filename
+    sio.savemat(mat_file, {"velocities": v_data})
+
+    # confirmation
+    print(f"Saved velocities to {mat_file} with shape {v_data.shape}")

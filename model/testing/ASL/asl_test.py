@@ -1,4 +1,3 @@
-import cvxpy as cp
 from scipy.signal import savgol_filter
 
 import numpy as np
@@ -10,7 +9,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from model.utils.read_files import load_asl, get_npz
-from model.utils.save_files import save_asl_plot
+from model.utils.save_files import save_asl_plot, save_grasp_mat
 
 load_dotenv()
 
@@ -84,23 +83,6 @@ class TestASL():
         print(f"Most used synergy shifts (indices): {top_used}")
         print(f"Usage counts of top shifts: {usage_counts[top_used]}")
     
-    def smooth_lasso(self, synergy_bank, target_signal, lasso_weight, smoothness_weight):
-        """
-        """
-        num_shifts = synergy_bank.shape[1]
-        coefs = cp.Variable(num_shifts)
-
-        # first-difference matrix
-        diff_matrix = np.eye(synergy_bank.shape[0])[:-1] - np.eye(synergy_bank.shape[0])[1:]
-
-        predicted_signal = synergy_bank @ coefs
-        objective = (0.5 * cp.sum_squares(target_signal - predicted_signal)
-            + lasso_weight * cp.norm1(coefs) + smoothness_weight * cp.sum_squares(predicted_signal)
-        )
-        problem = cp.Problem(cp.Minimize(objective))
-        problem.solve()
-        return coefs.value
-
     def grasp_loss(self, grasp: int) -> float:
         # get the column of V that corresponds to grasp
         V_col = self.V[:, grasp]
@@ -163,8 +145,14 @@ class TestASL():
                 plt.tight_layout(rect=[0, 0, 1, 0.95])
                 fig.suptitle(f"Grasp {g + 1}, ASL reconstruction error: {self.grasp_loss(g):.4f}")
 
+                # save plots and values
                 save_asl_plot(fig, g, self.subject)
-                plt.show()
+                # need to reshape velocities
+                true_grasp_matrix = self.V[:, g].reshape(self.n, self.T)
+                recon_grasp_matrix = V_est[:, g].reshape(self.n, self.T)
+                save_grasp_mat(true_grasp_matrix, f"{self.subject}_ASL{g + 1}.mat", self.subject)
+                save_grasp_mat(recon_grasp_matrix, f"{self.subject}_ASL{g + 1}_reconstruction.mat", self.subject)
+                #plt.show()
                 plt.close(fig)
 
         except KeyboardInterrupt:
@@ -179,7 +167,7 @@ if __name__ == '__main__':
     subject = "subj2"
     asl_filename = "ASL_Test_Data.mat"
     npz_filename = "active_synergies_tol=1e-04.npz"
-    asl = TestASL(subject, asl_filename, npz_filename, alpha=0.00005)
+    asl = TestASL(subject, asl_filename, npz_filename, alpha=0.00004)
     # run
     print(asl.S_bank.shape)
     asl.run()
