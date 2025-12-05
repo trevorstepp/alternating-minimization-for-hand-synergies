@@ -21,9 +21,6 @@ class AlternatingMinModel(BaseSynergyModel):
                     cont = input("Continue loop (y or n)? ")
                     if cont == 'n':
                         break
-                #if epoch % 10 == 0:
-                    #self.compare_V(self.V_est(self.true_S, self.true_C), epoch)
-                    #self.compare_V(self.V_est(self.S, self.C), epoch)
         except KeyboardInterrupt:
             print("Keyboard Interrupt - skipping rest of loop.")
 
@@ -42,7 +39,7 @@ class AlternatingMinModel(BaseSynergyModel):
         print(f"Number of zero coefficients in C: {np.count_nonzero(np.abs(self.C) < 1e-8)} / {np.size(self.C)}")
 
         expected_synergies = np.stack([self.s_list[j] for j in active], axis=2)
-        saved_synergies = verify_saved_synergies(self.subject, f"subj{self.subject}_synergies.mat")
+        saved_synergies = verify_saved_synergies(self.subject, f"{self.subject}_synergies.mat")
 
         print("Saved synergies shape:", saved_synergies.shape)
         print("Expected synergies shape:", expected_synergies.shape)

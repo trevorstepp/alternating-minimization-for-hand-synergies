@@ -18,25 +18,41 @@ class TestASL():
         self.subject = subject
         self.alpha = alpha
         self.n, self.T, self.G, self.V = load_asl(self.subject, asl_filename)
+
+        self.K_j = 44
+        self.m = 7
         self.S_bank_t = get_npz(subject, npz_filename)
-        self.S_bank, kept = self.prune_correlated(self.S_bank_t, threshold=0.8)
+        self.labels_t = self.create_labels(self.S_bank_t)
+
+        self.S_bank, self.labels, self.kept = self.prune_correlated(self.S_bank_t, self.labels_t, threshold=0.8)
         self.S_bank = savgol_filter(self.S_bank, window_length=11, polyorder=3, axis=0)
-        print(f"Kept {len(kept)} out of {self.S_bank_t.shape[1]} columns after correlation pruning.")
+        assert self.S_bank.shape[1] == self.labels.shape[0]
+        print(f"Kept {len(self.kept)} out of {self.S_bank_t.shape[1]} columns after correlation pruning.")
         self.C = np.zeros(shape=(self.S_bank.shape[1], self.G))
 
-    def prune_correlated(self, S: npt.NDArray, threshold: float=0.9) -> npt.NDArray:
+    def create_labels(self, S: npt.NDArray) -> npt.NDArray:
+        labels = []
+        for j in range(self.m):
+            for k in range(self.K_j):
+                labels.append((j, k))  # (synergy j, shift k)
+        labels = np.array(labels)  # shape (M, 2), M = self.m * self.K_j
+        return labels
+
+    def prune_correlated(self, S: npt.NDArray, labels: npt.NDArray, threshold: float=0.9) -> tuple[npt.NDArray, npt.NDArray, list[int]]:
         """
         """
         corr_matrix = np.corrcoef(S, rowvar=False)
         np.fill_diagonal(corr_matrix, 0)
         to_remove = set()
+
         for i in range(corr_matrix.shape[0]):
             if i in to_remove:
                 continue
             high_corr = np.where(np.abs(corr_matrix[i]) > threshold)[0]
             to_remove.update(high_corr)
+
         keep_indices = [i for i in range(S.shape[1]) if i not in to_remove]
-        return S[:, keep_indices], keep_indices
+        return S[:, keep_indices], labels[keep_indices], keep_indices
 
     def lasso(self) -> None:
         tol=1e-3
@@ -113,8 +129,9 @@ class TestASL():
         """
         V_est = self.V_est()
         try:
+            joints = ["T-MCP", "T-IP", "I-MCP", "I-PIP", "M-MCP", "M-PIP", "R-MCP", "R-PIP", "P-MCP", "P-PIP"]
             for g in range(self.G):
-                fig, axes = plt.subplots(self.n, 1, figsize=(6, 8), sharex=True)
+                fig, axes = plt.subplots(self.n, 1, figsize=(8, 10), sharex=True)
                 # normalize axes to always be a list
                 if isinstance(axes, np.ndarray):
                     axes_list: list[Axes] = axes.ravel().tolist()
@@ -123,51 +140,88 @@ class TestASL():
 
                 for i in range(self.n):
                     ax: Axes = axes_list[i]
+                    ax.tick_params(axis='both', which='major', labelsize=12)
+
                     true_v = self.V[(i * self.T):((i + 1) * self.T), g]
                     est_v = V_est[(i * self.T):((i + 1) * self.T), g]
 
                     # compute y-axis numbers to display
                     max_val = max(np.abs(true_v).max(), np.abs(est_v).max())
-                    ax.set_ylim(-max_val, max_val)
+                    tick_val = np.ceil(max_val * 100) / 100  # rounds up to 0.01
+                    y_plus_lim = tick_val + 0.01
+                    y_minus_lim = -tick_val - 0.01
+                    ax.set_ylim([y_minus_lim, y_plus_lim])
+                    ax.set_yticks([y_minus_lim, 0, y_plus_lim])
 
                     ax.plot(true_v, 'r', label="True V")
                     ax.plot(est_v, 'k', label="Estimate V")
 
                     if i == self.n - 1:
-                        ax.set_xlabel("Samples")
-                    if i == int(self.n / 2):
-                        ax.set_ylabel("Angular velocities of ten joints (radian/sample)")
+                        ax.set_xlabel("Samples", fontsize=18)
                         ax.set_xticks([0, 20, 40, 60, 80])
-
-                handles, labels = axes_list[0].get_legend_handles_labels()
-                fig.legend(handles, labels, loc="upper right", fontsize=8)
+                    
+                    ax.set_ylabel(f"{joints[i]}", labelpad=40, rotation="horizontal", fontsize=18)
+                    ax.yaxis.set_label_position("right")
                 
-                plt.tight_layout(rect=[0, 0, 1, 0.95])
-                fig.suptitle(f"Grasp {g + 1}, ASL reconstruction error: {self.grasp_loss(g):.4f}")
+                fig.text(
+                    0.01, 0.5, "Angular velocities of ten joints (radian/sample)",
+                    va="center", rotation="vertical", fontsize=18
+                )
+                fig.suptitle(f"Gesture {g + 1}, ASL reconstruction error: {self.grasp_loss(g):.4f}", fontsize=18)
+                plt.tight_layout(rect=(0.025, 0, 1, 1))
 
                 # save plots and values
                 save_asl_plot(fig, g, self.subject)
                 # need to reshape velocities
                 true_grasp_matrix = self.V[:, g].reshape(self.n, self.T)
                 recon_grasp_matrix = V_est[:, g].reshape(self.n, self.T)
-                save_grasp_mat(true_grasp_matrix, f"{self.subject}_ASL{g + 1}.mat", self.subject)
-                save_grasp_mat(recon_grasp_matrix, f"{self.subject}_ASL{g + 1}_reconstruction.mat", self.subject)
+                #save_grasp_mat(true_grasp_matrix, f"{self.subject}_ASL{g + 1}.mat", self.subject)
+                #save_grasp_mat(recon_grasp_matrix, f"{self.subject}_ASL{g + 1}_reconstruction.mat", self.subject)
                 #plt.show()
                 plt.close(fig)
 
         except KeyboardInterrupt:
                 print("Keyboard Interrupt - skipping rest of loop.")
+
+    def plot_shift_usage(self, grasp: int) -> None:
+        tol = 1e-3
+        # select active coefficients
+        mask = np.abs(self.C[:, grasp]) > tol
+        active = np.flatnonzero(mask)
+
+        fig, axes = plt.subplots(self.m, 1, figsize=(8, 6), sharex=True)
+        for index in active:
+            synergy, shift = self.labels[index]
+            amplitude = abs(self.C[index, grasp])
+
+            # select the subplot
+            ax: Axes = axes[synergy]
+
+            # scatter plot
+            ax.stem([shift], [amplitude], linefmt='purple', markerfmt='o', basefmt=' ')
+        
+        fig.text(
+            0.01, 0.5, "Amplitude of shifts",
+            va="center", rotation="vertical", fontsize=18
+        )
+        axes[-1].set_xlabel("Time of recruitment (samples)", fontsize=18)
+        for ax in axes:
+            ax.tick_params(axis='both', which='major', labelsize=12)
+        fig.suptitle(f"ASL Gesture {grasp + 1}: Synergy Recruitment", fontsize=18)
+        plt.tight_layout(rect=(0.025, 0, 1, 1))
+        plt.show()
     
     def run(self) -> None:
         self.lasso()
         #print(f"V loss {self.V_loss()}")
-        self.asl_reconstruction_plot()
+        #self.asl_reconstruction_plot()
+        self.plot_shift_usage(grasp=28)
 
 if __name__ == '__main__':
-    subject = "subj2"
+    subject = "subj8"
     asl_filename = "ASL_Test_Data.mat"
     npz_filename = "active_synergies_tol=1e-04.npz"
-    asl = TestASL(subject, asl_filename, npz_filename, alpha=0.00004)
+    asl = TestASL(subject, asl_filename, npz_filename, alpha=0.00002)
     # run
     print(asl.S_bank.shape)
     asl.run()

@@ -154,7 +154,7 @@ class BaseSynergyModel(ABC):
         # optimize using least squares, reshape into (n, t_s), normalize
         #s_new, *_ = np.linalg.lstsq(B_j, r_j, rcond=None)
         #self.s_list[index] = np.reshape(s_new, (self.n, self.t_s))
-        clf = linear_model.Ridge(alpha=0.25)
+        clf = linear_model.Ridge(alpha=0.1)
         clf.fit(B_j, r_j)
         self.s_list[index] = np.reshape(clf.coef_, (self.n, self.t_s))
 
@@ -200,6 +200,7 @@ class BaseSynergyModel(ABC):
             col_norms[zero_cols] = 1.0
         S_scaled = self.S / col_norms[np.newaxis, :]
 
+        avg_coef = 0
         for g in range(self.G):
             if self.V is None:
                 raise ValueError("self.V cannot be None for sparse group lasso.")
@@ -215,7 +216,7 @@ class BaseSynergyModel(ABC):
             # ---------------- Diagnostics ----------------
             nonzero = np.count_nonzero(np.abs(coef) > 1e-8)
             print(f"\nGrasp {g+1}: {nonzero} / {coef.size} nonzero coefficients")
-
+            avg_coef += nonzero
             # show top 10 by magnitude
             top_idx = np.argsort(np.abs(coef))[::-1][:10]
             print("  Top |coef|:", np.round(np.abs(coef[top_idx]), 4))
@@ -236,6 +237,7 @@ class BaseSynergyModel(ABC):
                 corrs = Szn.T @ Szn
                 upper = corrs[np.triu_indices_from(corrs, k=1)]
                 print(f"   Cosine sim (Group {j0+1}): mean={upper.mean():.3f}, max={upper.max():.3f}")
+        print(f"Average coefficients per grasp: {avg_coef / self.G}")
 
     def normalize_synergy(self, index: int) -> None:
         """Normalizes a synergy to remove scaling ambiguity.
@@ -388,7 +390,7 @@ class BaseSynergyModel(ABC):
                 fig.suptitle(f"Epoch {epoch}, Grasp {g + 1}, reconstruction error: {self.V_grasp_loss(g):.4f}")
                 
                 save_reconstruction_plot(fig, g, self.subject)
-                plt.show()
+                #plt.show()
                 plt.close(fig)
                 
         except KeyboardInterrupt:

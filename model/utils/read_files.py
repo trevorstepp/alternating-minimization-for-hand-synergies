@@ -59,4 +59,7 @@ def verify_saved_synergies(subject: str, filename: str) -> npt.NDArray:
     return saved_synergies
 
 if __name__ == '__main__':
-    print(verify_saved_synergies(subject="subj2", filename="subj2_synergies.mat").shape)
+    print(verify_saved_synergies(subject="subj5", filename="subj5_synergies.mat").shape)
+    #file_path = "/Users/trevorstepp/Desktop/BCI_Research/Pitt Cyberglove Data/Rapid Natural and ASL tasks/subj3/ASL_Test_Data.mat"
+    #data_dict = sio.loadmat(file_path)
+    #print(data_dict)
