@@ -204,9 +204,13 @@ class TestASL():
             0.01, 0.5, "Amplitude of shifts",
             va="center", rotation="vertical", fontsize=18
         )
-        axes[-1].set_xlabel("Time of recruitment (samples)", fontsize=18)
+        axes[-1].set_xlabel("Selected Shift", fontsize=18)
+        synergy = 1
         for ax in axes:
             ax.tick_params(axis='both', which='major', labelsize=12)
+            ax.set_ylabel(f"Synergy {synergy}", labelpad=50, rotation="horizontal", fontsize=18)
+            ax.yaxis.set_label_position("right")
+            synergy += 1
         fig.suptitle(f"ASL Gesture {grasp + 1}: Synergy Recruitment", fontsize=18)
         plt.tight_layout(rect=(0.025, 0, 1, 1))
         plt.show()
