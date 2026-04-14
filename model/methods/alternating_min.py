@@ -30,12 +30,10 @@ class AlternatingMinModel(BaseSynergyModel):
         if(save == 'y'):
             self.plot_synergies()
 
-        #self.print_synergy_norms()
         self.save_active_synergies(tol=1e-4)
 
         active, dropped, group_norms = self.active_synergies()
         print(f"Active: {active}; Dropped: {dropped}")
-        print(f"Group norms: {group_norms}")
         print(f"Number of zero coefficients in C: {np.count_nonzero(np.abs(self.C) < 1e-8)} / {np.size(self.C)}")
 
         expected_synergies = np.stack([self.s_list[j] for j in active], axis=2)
