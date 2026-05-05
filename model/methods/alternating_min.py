@@ -13,8 +13,6 @@ class AlternatingMinModel(BaseSynergyModel):
                 self.sparse_group_lasso()
                 self.solve_S()
                 print(f"Epoch {epoch + 1}")
-                #print(f"S loss: {self.S_loss()}")
-                #print(f"C loss: {self.C_loss()}")
                 print(f"V loss {self.V_loss()}")
 
                 if (epoch + 1) % 10 == 0:
@@ -24,7 +22,6 @@ class AlternatingMinModel(BaseSynergyModel):
         except KeyboardInterrupt:
             print("Keyboard Interrupt - skipping rest of loop.")
 
-        #self.compare_V(self.V_est(self.true_S, self.true_C), epoch) 
         self.compare_V(self.V_est(self.S, self.C), epoch + 1) 
         save = input("Save synergies (y or n)? ")
         if(save == 'y'):
