@@ -213,7 +213,7 @@ class BaseSynergyModel(ABC):
             coef = model.coef_ / col_norms
             self.C[:, g] = coef
 
-            # ---------------- Diagnostics ----------------
+            # diagnostics
             nonzero = np.count_nonzero(np.abs(coef) > 1e-8)
             print(f"\nGrasp {g+1}: {nonzero} / {coef.size} nonzero coefficients")
             avg_coef += nonzero
@@ -226,17 +226,8 @@ class BaseSynergyModel(ABC):
                 block = coef[self.C_mask(j)]
                 nonzero_block = np.count_nonzero(np.abs(block) > 1e-8)
                 max_block = np.max(np.abs(block))
-                print(f"   Group {j+1}: {nonzero_block:2d}/{block.size} active, max={max_block:.3e}")
+                print(f"Group {j+1}: {nonzero_block:2d}/{block.size} active, max={max_block:.3e}")
 
-            # optional: check collinearity (just for first grasp to avoid clutter)
-            if g == 0:
-                j0 = 1  # choose which synergy to inspect (0-indexed)
-                idx = self.C_mask(j0)
-                S_block = self.S[:, idx]
-                Szn = S_block / (np.linalg.norm(S_block, axis=0) + 1e-12)
-                corrs = Szn.T @ Szn
-                upper = corrs[np.triu_indices_from(corrs, k=1)]
-                print(f"   Cosine sim (Group {j0+1}): mean={upper.mean():.3f}, max={upper.max():.3f}")
         print(f"Average coefficients per grasp: {avg_coef / self.G}")
 
     def normalize_synergy(self, index: int) -> None:
