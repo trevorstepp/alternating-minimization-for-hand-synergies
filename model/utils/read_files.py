@@ -5,7 +5,12 @@ import scipy.io as sio
 from pathlib import Path
 
 def get_root_path() -> Path:
-    """
+    """Return the root data directory defined by the ``DATA_ROOT`` env variable.
+
+    Params:
+        None.
+    Returns:
+        Path: Path object pointing to the root data directory.
     """
     root = os.getenv("DATA_ROOT")
     if not root:
@@ -16,8 +21,8 @@ def load_mat_file(subject: str, filename: str) -> tuple[int, int, int, npt.NDArr
     """Loads a .mat file and returns the data.
 
     Params:
-        subject (str): Which testing subject's data we want to examine.
-        filename (str): The name of the file containing the subject's testing data.
+        subject (str): The subject associated with the data.
+        filename (str): The name of the file containing the subject's data.
     Returns:
         npt.NDArray: The joint angular velocity data from the .mat file.
     """
@@ -30,19 +35,39 @@ def load_mat_file(subject: str, filename: str) -> tuple[int, int, int, npt.NDArr
     return n, T, G, V
 
 def load_natural_grasps(subject: str, filename: str) -> tuple[int, int, int, npt.NDArray]:
-    """Loads the natural grasping tasks for a subject.
+    """Load the natural grasping tasks for a subject.
+
+    Params:
+        subject (str): The subject associated with the natural grasping task data.
+        filename (str): The name of the file containing the subject's data.
+    Returns:
+        tuple: Tuple containing number of joints, time steps, and grasping tasks, as well as 
+               the actual data, shape (n * T, G).
     """
     n, T, G, V = load_mat_file(subject, filename)
     return n, T, G, V
 
 def load_asl(subject: str, filename: str) -> tuple[int, int, int, npt.NDArray]:
     """Loads the ASL tasks for a subject.
+
+    Params:
+        subject (str): The subject associated with the ASL task data.
+        filename (str): The name of the file containing the subject's data.
+    Returns:
+        tuple: Tuple containing number of joints, time steps, and ASL tasks, as well as 
+               the actual data, shape (n * T, G).
     """
     n, T, G, V = load_mat_file(subject, filename)
     return n, T, G, V
 
 def get_npz(subject: str, filename: str) -> npt.NDArray:
-    """
+    """Loads the matrix of active synergy shifts from a .npz file.
+
+    Params:
+        subject (str): The subject associated with the .npz data.
+        filename (str): The name of the .npz file.
+    Returns:
+        npt.NDArray: The matrix of active synergy shifts.
     """
     curr_dir = Path(__file__).resolve().parent
     npz_path = curr_dir / "results" / "npz_saved_synergies" / subject / filename
@@ -50,7 +75,7 @@ def get_npz(subject: str, filename: str) -> npt.NDArray:
     return data['active_synergies']
 
 def verify_saved_synergies(subject: str, filename: str) -> npt.NDArray:
-    """
+    """Pass.
     """
     curr_dir = Path(__file__).resolve().parent
     mat_path = curr_dir / "results" / "npz_saved_synergies" / subject / filename
