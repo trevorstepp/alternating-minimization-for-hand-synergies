@@ -34,11 +34,12 @@ def get_subj_dir(base_dir: Path, subject: str) -> Path:
     return subj_dir
 
 def save_reconstruction_plot(fig: Figure, g: int, subject: str) -> None:
-    """Saves the joint angular velocity reconstruction error at grasp g to a .png file.
+    """Save the reconstruction plot for grasp g for a subject to a .png file.
 
     Params:
-        fig (Figure): matplotlib graph of the reconstruction error at grasp g.
-        g (int): The grasping task shown in the figure.
+        fig (Figure): matplotlib graph of the reconstruction at grasp g.
+        g (int): The grasping task being reconstructed.
+        subject (str): The subject associated with the reconstruction data.
     Returns:
         None.
     """
@@ -46,13 +47,20 @@ def save_reconstruction_plot(fig: Figure, g: int, subject: str) -> None:
     fig.savefig(subj_dir / f"grasp{g + 1}.png")
 
 def save_synergy_plot(fig: Figure, j: int, subject: str) -> None:
-    """
+    """Save the plot of synergy `j` for a subject to a .png file.
+
+    Params:
+        fig (Figure): matplotlib graph of the synergy.
+        j (int): The synergy identifier (from 1 to m, where m is the number of synergies).
+        subject (str): The subject whose data was used to learn the synergy.
+    Returns:
+        None.
     """
     subj_dir = get_subj_dir(SYNERGY_DIR, subject)
     fig.savefig(subj_dir / f"synergy{j + 1}.png")
 
 def save_asl_plot(fig: Figure, g: int, subject: str) -> None:
-    """
+    """Save the ASL reconstruction plot for task g for a subject to a .png file.
     """
     subj_dir = get_subj_dir(ASL_DIR, subject)
     fig.savefig(subj_dir / f"asl_grasp{g + 1}.png")
